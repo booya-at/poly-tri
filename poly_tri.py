@@ -1,7 +1,6 @@
 import numpy as np
 import copy
 
-
 def makeKey(i1, i2):
     """
     Make a tuple key such at i1 < i2
@@ -32,11 +31,6 @@ class PolyTri(object):
         # compute center of gravity
 
         cg = sum(pts, np.zeros(2, np.float64)) / len(pts)
-
-        # sort
-        def distanceSquare(pt):
-            d = pt - cg
-            return np.dot(d, d)
         i = 0
         while True:
             self.pts = pts[:]
@@ -52,7 +46,7 @@ class PolyTri(object):
     
             tri = [index, index + 1, index + 2]
             self.makeCounterClockwise(tri)
-            if self.getArea(*tri) > 1e-5:
+            if self.getArea(*tri) > self.EPS:
                 self.triangles.append(tri)
                 break
             else:
@@ -313,7 +307,7 @@ class PolyTri(object):
         for i, tri in enumerate(self.triangles):
             for j in tri:
                 self.point2Triangles[j].add(i)
-
+    
     def create_boundary_list(self, boundaries, isboarder=None):
         constrained_boundary = []
         reversed_map = np.argsort(self.shuffeld_points)
@@ -324,7 +318,7 @@ class PolyTri(object):
             for i, j in zip(b[:-1], b[1:]):
                 constrained_boundary.append(makeKey(i, j))
         return constrained_boundary
-
+    
     def create_ordered_boundary_list(self, boundaries, isboarder=None):
         constrained_boundary = []
         reversed_map = np.argsort(self.shuffeld_points)
@@ -335,7 +329,7 @@ class PolyTri(object):
             for i, j in zip(b[:-1], b[1:]):
                 constrained_boundary.append([i, j])
         return constrained_boundary
-
+    
     def constraintBoundaries(self):
         boundary = self.create_boundary_list(self.boundaries)
         remove_triangles = set()  # nr
@@ -458,7 +452,7 @@ class PolyTri(object):
         except np.linalg.linalg.LinAlgError:
             return False
         return (0 < c1 < 1) and (0 < c2 < 1)
-    
+
     def removeHoles(self):
         bs = self.create_boundary_list(self.boundaries, self.isBoarder)
         o_bs = self.create_ordered_boundary_list(self.boundaries, self.isBoarder)
@@ -529,3 +523,14 @@ class PolyTri(object):
                 lower_loop.append(i)
         return upper_loop, lower_loop
 
+if __name__ == '__main__':
+    # for profiling
+    phi = np.linspace(0, 2 * np.pi, 1000)
+    outer = np.array([np.cos(phi), np.sin(phi)]).T
+    inner = (outer * 0.5)
+    points = np.array(list(outer) + list(inner))
+    inner_bound = np.array(range(len(inner)))
+    outer_bound = np.array(range(len(outer)))
+    inner_bound +=  max(outer_bound) + 1
+    outer_bound = outer_bound[::-1]
+    tri = PolyTri(points, [inner_bound, outer_bound], delaunay=False)

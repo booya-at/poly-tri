@@ -12,7 +12,7 @@ class TriangleTests(unittest.TestCase):
         return np.random.randint(10, 30)
 
     def setUp(self):
-        self.phi = np.linspace(0, 2 * np.pi, self.an_int)
+        self.phi = np.linspace(0, 2 * np.pi, 300)
         self.outer = np.array([np.cos(self.phi), np.sin(self.phi)]).T
         self.inner = (self.outer * 0.5)
         self.points = np.array(list(self.outer) + list(self.inner))
@@ -40,7 +40,6 @@ class TriangleTests(unittest.TestCase):
         pts = np.array(list(pts) + list(pts_upper) + list(additional_pts))
         tri = PolyTri(pts, cb, remove_holes=False, delaunay=False)
         plt.triplot(*pts.T, tri.get_tris())
-        print(len(tri.get_tris()))
         for i, p in enumerate(pts):
             plt.annotate(str(i), p)
         plt.show()
