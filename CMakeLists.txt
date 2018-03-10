@@ -6,5 +6,5 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX)
 endif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX)
 
 
-add_library(poly_tri poly_tri.cpp)
+add_library(poly_tri poly_tri.cpp poly_tri.h)
 
