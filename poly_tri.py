@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-def makeKey(i1, i2):
+def make_key(i1, i2):
     """
     Make a tuple key such at i1 < i2
     """
@@ -14,19 +14,19 @@ class PolyTri(object):
 
     small = 1e-10
 
-    def __init__(self, pts, boundaries=None, delaunay=True, remove_holes=True, isBoarder=[]):
+    def __init__(self, pts, boundaries=None, delaunay=True, holes=True, boarder=[]):
 
         # data structures
         self.pts = pts[:]  # copy
         self.triangles = []  # cells
-        self.edge2Triangles = {}  # edge to triangle(s) map
-        self.point2Triangles = {}
-        self.boundaryEdges = set()
+        self.edge2tris = {}  # edge to triangle(s) map
+        self.point2triangles = {}
+        self.boundary_edges = set()
         self.delaunay = delaunay
-        self.appliedBoundaryEdges = None
+        self.appliedBoundary_edges = None
         self.holes = None
         self.boundaries = boundaries
-        self.isBoarder = isBoarder
+        self.boarder = boarder
 
         # compute center of gravity
 
@@ -58,13 +58,13 @@ class PolyTri(object):
         e12 = (tri[1], tri[2])
         e20 = (tri[2], tri[0])
 
-        self.boundaryEdges.add(e01)
-        self.boundaryEdges.add(e12)
-        self.boundaryEdges.add(e20)
+        self.boundary_edges.add(e01)
+        self.boundary_edges.add(e12)
+        self.boundary_edges.add(e20)
         
-        self.edge2Triangles[makeKey(*e01)] = [0]
-        self.edge2Triangles[makeKey(*e12)] = [0]
-        self.edge2Triangles[makeKey(*e20)] = [0]
+        self.edge2tris[make_key(*e01)] = [0]
+        self.edge2tris[make_key(*e12)] = [0]
+        self.edge2tris[make_key(*e20)] = [0]
 
         # add additional pts
         for i in range(3, len(self.pts)):
@@ -75,7 +75,7 @@ class PolyTri(object):
         
         if self.boundaries:
             self.constraintBoundaries()
-            if remove_holes:
+            if holes:
                 self.remove_empty()
                 self.update_edge2tri()
                 self.removeHoles()
@@ -132,7 +132,7 @@ class PolyTri(object):
         res = set()
 
         # assume edge is sorted
-        tris = self.edge2Triangles.get(edge, [])
+        tris = self.edge2tris.get(edge, [])
         if len(tris) < 2:
                 # nothing to do, just return
                 return res
@@ -180,23 +180,23 @@ class PolyTri(object):
             # now handle the topolgy of the edges
 
             # remove this edge
-            del self.edge2Triangles[edge]
+            del self.edge2tris[edge]
 
             # add new edge
-            e = makeKey(iOpposite1, iOpposite2)
-            self.edge2Triangles[e] = [iTri1, iTri2]
+            e = make_key(iOpposite1, iOpposite2)
+            self.edge2tris[e] = [iTri1, iTri2]
 
             # modify two edge entries which now connect to
             # a different triangle
-            e = makeKey(iOpposite1, edge[1])
-            v = self.edge2Triangles[e]
+            e = make_key(iOpposite1, edge[1])
+            v = self.edge2tris[e]
             for i in range(len(v)):
                 if v[i] == iTri1:
                     v[i] = iTri2
             res.add(e)
 
-            e = makeKey(iOpposite2, edge[0])
-            v = self.edge2Triangles[e]
+            e = make_key(iOpposite2, edge[0])
+            v = self.edge2tris[e]
             for i in range(len(v)):
                 if v[i] == iTri2:
                     v[i] = iTri1
@@ -204,13 +204,13 @@ class PolyTri(object):
 
             # these two edges might need to be flipped at the
             # next iteration
-            res.add(makeKey(iOpposite1, edge[0]))
-            res.add(makeKey(iOpposite2, edge[1]))
+            res.add(make_key(iOpposite1, edge[0]))
+            res.add(make_key(iOpposite2, edge[1]))
 
         return res
 
     def flipEdges(self):
-        edgeSet = set(self.edge2Triangles.keys())
+        edgeSet = set(self.edge2tris.keys())
 
         continueFlipping = True
 
@@ -228,10 +228,10 @@ class PolyTri(object):
         """
 
         # collection for later updates
-        boundaryEdgesToRemove = set()
-        boundaryEdgesToAdd = set()
+        boundary_edges2remove = set()
+        boundary_edges2add = set()
 
-        for edge in self.boundaryEdges:
+        for edge in self.boundary_edges:
 
             if self.isEdgeVisible(ip, edge):
 
@@ -245,7 +245,7 @@ class PolyTri(object):
                 e = list(edge[:])
                 e.sort()
                 iTri = len(self.triangles) - 1
-                self.edge2Triangles[tuple(e)].append(iTri)
+                self.edge2tris[tuple(e)].append(iTri)
 
                 # add the two boundary edges
                 e1 = [ip, edge[0]]
@@ -254,29 +254,29 @@ class PolyTri(object):
                 e2 = [edge[1], ip]
                 e2.sort()
                 e2 = tuple(e2)
-                v1 = self.edge2Triangles.get(e1, [])
+                v1 = self.edge2tris.get(e1, [])
                 v1.append(iTri)
-                v2 = self.edge2Triangles.get(e2, [])
+                v2 = self.edge2tris.get(e2, [])
                 v2.append(iTri)
-                self.edge2Triangles[e1] = v1
-                self.edge2Triangles[e2] = v2
+                self.edge2tris[e1] = v1
+                self.edge2tris[e2] = v2
 
                 # keep track of the boundary edges to update
-                boundaryEdgesToRemove.add(edge)
-                boundaryEdgesToAdd.add((edge[0], ip))
-                boundaryEdgesToAdd.add((ip, edge[1]))
+                boundary_edges2remove.add(edge)
+                boundary_edges2add.add((edge[0], ip))
+                boundary_edges2add.add((ip, edge[1]))
 
         # update the boundary edges
-        for bedge in boundaryEdgesToRemove:
-            self.boundaryEdges.remove(bedge)
-        for bedge in boundaryEdgesToAdd:
+        for bedge in boundary_edges2remove:
+            self.boundary_edges.remove(bedge)
+        for bedge in boundary_edges2add:
             bEdgeSorted = list(bedge)
             bEdgeSorted.sort()
             bEdgeSorted = tuple(bEdgeSorted)
-            if len(self.edge2Triangles[bEdgeSorted]) == 1:
+            if len(self.edge2tris[bEdgeSorted]) == 1:
                 # only add boundary edge if it does not appear
                 # twice in different order
-                self.boundaryEdges.add(bedge)
+                self.boundary_edges.add(bedge)
 
         if self.delaunay:  # recursively flip edges
             flipped = True
@@ -284,28 +284,28 @@ class PolyTri(object):
                 flipped = self.flipEdges()
         
         for i, _ in enumerate(self.pts):
-            self.point2Triangles[i] = set()
+            self.point2triangles[i] = set()
 
         for i, tri in enumerate(self.triangles):
             for j in tri:
-                self.point2Triangles[j].add(i)
+                self.point2triangles[j].add(i)
     
-    def create_boundary_list(self, boundaries, isboarder=None):
+    def create_boundary_list(self, boundaries, boarder=None):
         constrained_boundary = []
         reversed_map = np.argsort(self.shuffeld_points)
         for k, boundary in enumerate(boundaries):
-            if isboarder and k not in isboarder:
+            if boarder and k not in boarder:
                 continue
             b = reversed_map[boundary]
             for i, j in zip(b[:-1], b[1:]):
-                constrained_boundary.append(makeKey(i, j))
+                constrained_boundary.append(make_key(i, j))
         return constrained_boundary
     
-    def create_ordered_boundary_list(self, boundaries, isboarder=None):
+    def create_ordered_boundary_list(self, boundaries, boarder=None):
         constrained_boundary = []
         reversed_map = np.argsort(self.shuffeld_points)
         for k, boundary in enumerate(boundaries):
-            if isboarder and k not in isboarder:
+            if boarder and k not in boarder:
                 continue
             b = reversed_map[boundary]
             for i, j in zip(b[:-1], b[1:]):
@@ -314,18 +314,18 @@ class PolyTri(object):
     
     def constraintBoundaries(self):
         boundary = self.create_boundary_list(self.boundaries)
-        remove_triangles = set()  # nr
-        additional_triangles = []
+        tris2remove = set()  # nr
+        tris2add = []
         for cb in boundary:
             removed_edges = set()
-            if cb not in self.edge2Triangles.keys():
+            if cb not in self.edge2tris.keys():
                 pt1, pt2 = cb
-                for tri in self.point2Triangles[pt1]:
+                for tri in self.point2triangles[pt1]:
                     edge = copy.copy(self.triangles[tri])
                     edge.remove(pt1)
-                    edge = makeKey(*edge)
+                    edge = make_key(*edge)
                     if self.isIntersecting(edge, cb):
-                        remove_triangles.add(tri)
+                        tris2remove.add(tri)
                         break
                 edges = self.tri2edges(self.triangles[tri])
                 edges.remove(edge)
@@ -334,70 +334,70 @@ class PolyTri(object):
                 
                 if pt2 in self.triangles[tri]:
                     break
-                for tri in self.edge2Triangles[edge]:
-                    if tri not in remove_triangles:
+                for tri in self.edge2tris[edge]:
+                    if tri not in tris2remove:
                         break
                 while True:
-                    remove_triangles.add(tri)
+                    tris2remove.add(tri)
 
                     edges = self.tri2edges(self.triangles[tri])
                     edges.remove(edge)
                     for edge in edges:
                         if not pt2 in self.triangles[tri] and self.isIntersecting(edge, cb):
-                            remove_triangles.add(tri)
+                            tris2remove.add(tri)
                             edge_to_proceed = edge
                         else:
                             removed_edges.add(edge)
                     if pt2 in self.triangles[tri]:
                         break
                     edge = edge_to_proceed
-                    for tri in self.edge2Triangles[edge]:
-                        if tri not in remove_triangles:
+                    for tri in self.edge2tris[edge]:
+                        if tri not in tris2remove:
                            break
 
                 
                 ul, ll = self.create_loop(removed_edges, cb[0], cb[1])
                 if len(ul) == 3:
-                    additional_triangles.append(ul)
+                    tris2add.append(ul)
                 else:
                     ul_cb = list(range(len(ul))) + [0]
                     ul, ll = np.array(ul), np.array(ll)
-                    tris = PolyTri(self.pts[ul], [ul_cb], remove_holes=True, delaunay=False).get_tris()
+                    tris = PolyTri(self.pts[ul], [ul_cb], holes=True, delaunay=False).get_tris()
                     tris = [ul[tri] for tri in tris]
-                    additional_triangles += tris
+                    tris2add += tris
                 if len(ll) == 3:
-                    additional_triangles.append(ll)
+                    tris2add.append(ll)
                 else:
                     ll_cb = list(range(len(ll))) + [0]
-                    tris = PolyTri(self.pts[ll], [ll_cb], remove_holes=True, delaunay=False).get_tris()
+                    tris = PolyTri(self.pts[ll], [ll_cb], holes=True, delaunay=False).get_tris()
                     tris = [ll[tri] for tri in tris]
-                    additional_triangles += tris              
+                    tris2add += tris              
                 
                 # somehow we have to gather the edges!
                 # and find a closed loop. Divide them by the edge which is
                 # inserted and fill up the hole -> a full PolyTri with edge
                 # constraining and boundary removal.
-        remove_triangles = list(remove_triangles)
-        remove_triangles.sort()
-        remove_triangles.reverse()
-        for tri in remove_triangles:
+        tris2remove = list(tris2remove)
+        tris2remove.sort()
+        tris2remove.reverse()
+        for tri in tris2remove:
             self.triangles.pop(tri)
-        for tri in additional_triangles:
+        for tri in tris2add:
             self.triangles.append(list(tri))
         for tri in self.triangles:
             self.makeCounterClockwise(tri)
         self.update_edge2tri()
 
     def update_edge2tri(self):
-        self.edge2Triangles = {}
-        self.point2Triangles = {}
+        self.edge2tris = {}
+        self.point2triangles = {}
         for i, tri in enumerate(self.triangles):
             for edge in self.tri2edges(tri):
-                e2t = self.edge2Triangles.get(edge, [])
-                self.edge2Triangles[edge] = e2t + [i]
+                e2t = self.edge2tris.get(edge, [])
+                self.edge2tris[edge] = e2t + [i]
             for point in tri:
-                p2t = self.point2Triangles.get(point, [])
-                self.point2Triangles[point] = p2t + [i]
+                p2t = self.point2triangles.get(point, [])
+                self.point2triangles[point] = p2t + [i]
                 
 
     def remove_empty(self):
@@ -415,7 +415,7 @@ class PolyTri(object):
 
     def tri2edges(self, tri):
         _tri = tri + [tri[0]]
-        return [makeKey(*edge) for edge in zip(_tri[:-1], _tri[1:])]
+        return [make_key(*edge) for edge in zip(_tri[:-1], _tri[1:])]
 
     def tri2ordered_edges(self, tri):
         _tri = tri + [tri[0]]
@@ -436,11 +436,11 @@ class PolyTri(object):
         return (0 < c1 < 1) and (0 < c2 < 1)
 
     def removeHoles(self):
-        bs = self.create_boundary_list(self.boundaries, self.isBoarder)
-        o_bs = self.create_ordered_boundary_list(self.boundaries, self.isBoarder)
+        bs = self.create_boundary_list(self.boundaries, self.boarder)
+        o_bs = self.create_ordered_boundary_list(self.boundaries, self.boarder)
         remove_edges = set()
         for b, o_b in zip(bs, o_bs):
-            tris = self.edge2Triangles[b]
+            tris = self.edge2tris[b]
             for tri in tris:
                 if o_b in self.tri2ordered_edges(self.triangles[tri]):
                     edges = self.tri2edges(self.triangles[tri])
@@ -449,14 +449,14 @@ class PolyTri(object):
         for b in bs:
             if b in remove_edges:
                 remove_edges.remove(b)
-        remove_triangles = set()
+        tris2remove = set()
         for edge in remove_edges:
-            for tri in self.edge2Triangles[edge]:
-                remove_triangles.add(tri)
-        remove_triangles = list(remove_triangles)
-        remove_triangles.sort()
-        remove_triangles.reverse()
-        for i in remove_triangles:
+            for tri in self.edge2tris[edge]:
+                tris2remove.add(tri)
+        tris2remove = list(tris2remove)
+        tris2remove.sort()
+        tris2remove.reverse()
+        for i in tris2remove:
             self.triangles.pop(i)
     
     def create_loop(self, edges, start, end):
@@ -504,6 +504,7 @@ class PolyTri(object):
             else:
                 lower_loop.append(i)
         return upper_loop, lower_loop
+
 
 if __name__ == '__main__':
     # for profiling
