@@ -44,7 +44,7 @@ PolyTri::PolyTri(Vecs pts, Boundary boundary, bool remove_holes, bool delaunay, 
 	tri0 = {0, 1, 2};
     
 // 3.1 check if area > 0
-	makeCounterClockwise(tri0);
+	make_counter_clockwise(tri0);
 	double area = get_area(tri0);
 	if (area > small)
 	{
@@ -91,115 +91,164 @@ PolyTri::PolyTri(Vecs pts, Boundary boundary, bool remove_holes, bool delaunay, 
 
 void PolyTri::add_point(int id_pnt)
 {
-
+    
+    kEdges boundary_edges2remove;
+    kEdges boundary_edges2add;
+    for (Edge edge: boundary_edges)
+    {
+	if (is_edge_visible(edge, id_pnt))
+	{
+	    // create new triangle
+	    Triangle new_tri{edge[0], edge[1], id_pnt};
+	    std::sort(new_tri.begin(), new_tri.end());
+	    make_counter_clockwise(new_tri);
+	    tris.push_back(new_tri);
+	    
+	    // update the edge to triangle map
+            kEdge e{edge[0], edge[1]};  // set
+	    int iTri = tris.size() - 1;
+	    edge2tris[e].push_back(iTri);
+	    
+	    // add the two boundary edges
+	    kEdge e1{id_pnt, edge[0]};
+	    kEdge e2{edge[1], id_pnt};
+	    append_tri(e1, iTri);
+	    append_tri(e2, iTri);
+	    
+	    // keep track of the boundary edges to update
+	    boundary_edges2remove.insert(kEdge{edge[0], edge[1]});
+	    boundary_edges2add.insert(kEdge{edge[0], id_pnt});
+	    boundary_edges2add.insert(kEdge{id_pnt, edge[1]});
+	}
+    }
+    // update the boundary edges
+    for (auto bedge: boundary_edges2remove)
+    {
+	boundary_edges.erase(bedge);
+    }
+    for (auto bedge: boundary_edges2add)
+    {
+	if (edge2tris[bedge].size() == 1) // does work? we removed the sorting here!
+	{
+	    // only add boundary edge if it does not appear
+	    // twice in different order
+            self.boundary_edges.add(bedge)
+	}
 }
 
+void PolyTri::append_tri(kEdge edge, int iTri)
+{
+    if (edge2tris.find(edge) != edge2tris.end())
+	edge2tris[edge].push_back(iTri);
+    else
+	edge2tris[edge] = std::vector<int>{iTri};  // empty triangle
+}
 
 
 kEdges PolyTri::flip_one_edge(kEdge edge)
 {
-        // start with empty set
-        kEdges res;
-	std::vector<int> v;
-	kEdge _edge;
-	std::array<int, 2> v_edge;
-	
-	int i = 0;
-	for (int element: edge)
+    // start with empty set
+    kEdges res;
+    std::vector<int> v;
+    kEdge _edge;
+    std::array<int, 2> v_edge;
+    
+    int i = 0;
+    for (int element: edge)
+    {
+	v_edge[i++] = element;
+    }
+
+    // assume edge is sorted
+    if (! edge2tris.count(edge))
+    {
+	return res;
+    }
+    std::vector<int> i_tris = edge2tris[edge];
+    
+    if (i_tris.size() < 2)
+    {
+	// nothing to do, just return
+	return res;
+    }
+    int iTri1 = i_tris[0];
+    int iTri2 = i_tris[1];
+
+    Triangle tri1 = tris[iTri1];
+    Triangle tri2 = tris[iTri2];
+    
+    int iOpposite1 = -1;
+    int iOpposite2 = -1;
+    for (int i=0; i < 3; i++)
+    {
+	if (edge.find(tri1[i]) == edge.end())
+	    iOpposite1 = tri1[i];
+	if (edge.find(tri2[i]) == edge.end())
+	    iOpposite2 = tri2[i];
+    }
+    // compute the 2 angles at the opposite vertices
+    Vec da1 = pts[v_edge[0]] - pts[iOpposite1];
+    Vec db1 = pts[v_edge[1]] - pts[iOpposite1];
+    Vec da2 = pts[v_edge[0]] - pts[iOpposite2];
+    Vec db2 = pts[v_edge[1]] - pts[iOpposite2];
+    double crossProd1 = get_edge_area(v_edge, pts[iOpposite1]);
+    double crossProd2 = - get_edge_area(v_edge, pts[iOpposite2]);
+    double dotProd1 = da1.dot(db1);
+    double dotProd2 = da2.dot(db2);
+    double angle1 = abs(atan2(crossProd1, dotProd1));
+    double angle2 = abs(atan2(crossProd2, dotProd2));
+    
+    // Delaunay's test
+    if (angle1 + angle2 > M_PI*(1.0 + small))
+    {
+
+	// flip the triangles
+	//                       / ^ \                                        / b \
+	// iOpposite1 + a|b + iOpposite2    =>     + - > +
+	//                      \     /                                        \ a /
+
+	Triangle newTri1 {iOpposite1, v_edge[0], iOpposite2};  // triangle a
+	Triangle newTri2 {iOpposite1, iOpposite2, v_edge[1]};  // triangle b
+
+	// update the triangle data structure
+	tris[iTri1] = newTri1;
+	tris[iTri2] = newTri2;
+
+	// now handle the topolgy of the edges
+
+	// remove this edge
+	edge2tris.erase(edge);
+
+	// add new edge
+	_edge = kEdge{iOpposite1, iOpposite2};
+	edge2tris[_edge] = std::vector<int> {iTri1, iTri2};
+
+	// modify two edge entries which now connect to
+	// a different triangle
+	_edge = kEdge{iOpposite1, v_edge[1]};
+	v = edge2tris[_edge];
+	for (int & i : v)
 	{
-	    v_edge[i++] = element;
+	    if (i == iTri1)
+		i = iTri2;
 	}
+	res.insert(_edge);
 
-        // assume edge is sorted
-	if (! edge2tris.count(edge))
+	_edge = kEdge{iOpposite2, v_edge[0]};
+	v = edge2tris[_edge];
+	for (int & i : v)
 	{
-	    return res;
+	    if (i == iTri2)
+		i = iTri1;
 	}
-	std::vector<int> i_tris = edge2tris[edge];
-	
-        if (i_tris.size() < 2)
-	{
-                // nothing to do, just return
-                return res;
-	}
-	int iTri1 = i_tris[0];
-	int iTri2 = i_tris[1];
+	res.insert(_edge);
 
-	Triangle tri1 = tris[iTri1];
-	Triangle tri2 = tris[iTri2];
-	
-	int iOpposite1 = -1;
-        int iOpposite2 = -1;
-        for (int i=0; i < 3; i++)
-	{
-            if (edge.find(tri1[i]) == edge.end())
-                iOpposite1 = tri1[i];
-            if (edge.find(tri2[i]) == edge.end())
-                iOpposite2 = tri2[i];
-	}
-	// compute the 2 angles at the opposite vertices
-        Vec da1 = pts[v_edge[0]] - pts[iOpposite1];
-        Vec db1 = pts[v_edge[1]] - pts[iOpposite1];
-        Vec da2 = pts[v_edge[0]] - pts[iOpposite2];
-        Vec db2 = pts[v_edge[1]] - pts[iOpposite2];
-        double crossProd1 = get_edge_area(v_edge, pts[iOpposite1]);
-        double crossProd2 = - get_edge_area(v_edge, pts[iOpposite2]);
-        double dotProd1 = da1.dot(db1);
-        double dotProd2 = da2.dot(db2);
-        double angle1 = abs(atan2(crossProd1, dotProd1));
-        double angle2 = abs(atan2(crossProd2, dotProd2));
-	
-	// Delaunay's test
-        if (angle1 + angle2 > M_PI*(1.0 + small))
-	{
-
-            // flip the triangles
-            //                       / ^ \                                        / b \
-            // iOpposite1 + a|b + iOpposite2    =>     + - > +
-            //                      \     /                                        \ a /
-
-            Triangle newTri1 {iOpposite1, v_edge[0], iOpposite2};  // triangle a
-            Triangle newTri2 {iOpposite1, iOpposite2, v_edge[1]};  // triangle b
-
-            // update the triangle data structure
-            tris[iTri1] = newTri1;
-            tris[iTri2] = newTri2;
-
-            // now handle the topolgy of the edges
-
-            // remove this edge
-	    edge2tris.erase(edge);
-
-            // add new edge
-            _edge = kEdge{iOpposite1, iOpposite2};
-            edge2tris[_edge] = std::vector<int> {iTri1, iTri2};
-
-            // modify two edge entries which now connect to
-            // a different triangle
-            _edge = kEdge{iOpposite1, v_edge[1]};
-            v = edge2tris[_edge];
-            for (int & i : v)
-	    {
-                if (i == iTri1)
-                    i = iTri2;
-	    }
-            res.insert(_edge);
-
-            _edge = kEdge{iOpposite2, v_edge[0]};
-            v = edge2tris[_edge];
-            for (int & i : v)
-	    {
-                if (i == iTri2)
-                    i = iTri1;
-	    }
-            res.insert(_edge);
-
-            // these two edges might need to be flipped at the
-            // next iteration
-            res.insert(kEdge{iOpposite1, v_edge[0]});
-            res.insert(kEdge{iOpposite2, v_edge[1]});
-	}
-        return res;
+	// these two edges might need to be flipped at the
+	// next iteration
+	res.insert(kEdge{iOpposite1, v_edge[0]});
+	res.insert(kEdge{iOpposite2, v_edge[1]});
+    }
+    return res;
 }
 
 void PolyTri::flipEdges()
@@ -284,7 +333,7 @@ bool PolyTri::is_edge_visible(Edge edge, int id_pnt)
         return false;
 }
 
-void PolyTri::makeCounterClockwise(Triangle& tri)
+void PolyTri::make_counter_clockwise(Triangle& tri)
 {
     double area = get_area(tri);
     if (area < -small)

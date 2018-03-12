@@ -43,9 +43,10 @@ public:
     double get_edge_area(Edge edge, Vec pnt);
     double get_edge_area(Edge edge);
     double get_area(Triangle& tri);
-    void makeCounterClockwise(Triangle& tri);
+    void make_counter_clockwise(Triangle& tri);
     std::vector<int> sort_pts(Vec p0);
     void flipEdges();
     kEdges flip_one_edge(kEdge edge);
+    void append_tri(kEdge edge, int iTri);
     
 };
