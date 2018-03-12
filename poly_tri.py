@@ -12,7 +12,7 @@ def makeKey(i1, i2):
 
 class PolyTri(object):
 
-    EPS = 1.23456789e-14
+    small = 1e-10
 
     def __init__(self, pts, boundaries=None, delaunay=True, remove_holes=True, isBoarder=[]):
 
@@ -46,30 +46,25 @@ class PolyTri(object):
     
             tri = [index, index + 1, index + 2]
             self.makeCounterClockwise(tri)
-            if self.getArea(*tri) > self.EPS:
+            if self.getArea(*tri) > self.small:
                 self.triangles.append(tri)
                 break
             else:
-                i += 1
                 cg = self.pts[i]
-                
-
+                i += 1
+            
         # boundary edges
         e01 = (tri[0], tri[1])
-        self.boundaryEdges.add(e01)
         e12 = (tri[1], tri[2])
-        self.boundaryEdges.add(e12)
         e20 = (tri[2], tri[0])
+
+        self.boundaryEdges.add(e01)
+        self.boundaryEdges.add(e12)
         self.boundaryEdges.add(e20)
-
-        e01 = makeKey(e01[0], e01[1])
-        self.edge2Triangles[e01] = [0]
-
-        e12 = makeKey(e12[0], e12[1])
-        self.edge2Triangles[e12] = [0]
-
-        e20 = makeKey(e20[0], e20[1])
-        self.edge2Triangles[e20] = [0]
+        
+        self.edge2Triangles[makeKey(*e01)] = [0]
+        self.edge2Triangles[makeKey(*e12)] = [0]
+        self.edge2Triangles[makeKey(*e20)] = [0]
 
         # add additional pts
         for i in range(3, len(self.pts)):
@@ -113,7 +108,7 @@ class PolyTri(object):
         @return True if visible
         """
         area = self.getArea(ip, edge[0], edge[1])
-        if area < self.EPS:
+        if area < self.small:
             return True
         return False
 
@@ -122,7 +117,7 @@ class PolyTri(object):
         Re-order nodes to ensure positive area (in-place operation)
         """
         area = self.getArea(ips[0], ips[1], ips[2])
-        if area < -self.EPS:
+        if area < -self.small:
             ip1, ip2 = ips[1], ips[2]
             # swap
             ips[1], ips[2] = ip2, ip1
@@ -168,7 +163,7 @@ class PolyTri(object):
         angle2 = abs(np.arctan2(crossProd2, dotProd2))
 
         # Delaunay's test
-        if angle1 + angle2 > np.pi*(1.0 + self.EPS):
+        if angle1 + angle2 > np.pi*(1.0 + self.small):
 
             # flip the triangles
             #                         / ^ \                                        / b \
@@ -215,27 +210,14 @@ class PolyTri(object):
         return res
 
     def flipEdges(self):
-        """
-        Flip edges to statisfy Delaunay's criterion
-        """
-
-        # start with all the edges
         edgeSet = set(self.edge2Triangles.keys())
 
         continueFlipping = True
 
         while continueFlipping:
-
-            #
-            # iterate until there are no more edges to flip
-            #
-
-            # collect the edges to flip
             newEdgeSet = set()
             for edge in edgeSet:
-                # union
                 newEdgeSet |= self.flipOneEdge(edge)
-
             edgeSet = copy.copy(newEdgeSet)
             continueFlipping = (len(edgeSet) > 0)
 
