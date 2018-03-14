@@ -12,7 +12,7 @@ class TriangleTests(unittest.TestCase):
         return np.random.randint(10, 30)
 
     def setUp(self):
-        self.phi = np.linspace(0, 2 * np.pi, 300)
+        self.phi = np.linspace(0, 2 * np.pi, self.an_int)
         self.outer = np.array([np.cos(self.phi), np.sin(self.phi)]).T
         self.inner = (self.outer * 0.5)
         self.points = np.array(list(self.outer) + list(self.inner))
