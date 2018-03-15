@@ -4,12 +4,12 @@ import unittest
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
-from poly_tri import PolyTri
+from poly_tri_numba import poly_tri
 
 class TriangleTests(unittest.TestCase):
     @property
     def an_int(self):
-        return np.random.randint(10, 30)
+        return np.random.randint(10, 100)
 
     def setUp(self):
         self.phi = np.linspace(0, 2 * np.pi, self.an_int)
@@ -22,9 +22,9 @@ class TriangleTests(unittest.TestCase):
         self.outer_bound = self.outer_bound[::-1]
     
     def test_triangulization(self):
-        tri = PolyTri(self.points, [self.inner_bound, self.outer_bound], delaunay=False)
+        tri = poly_tri(self.points, [self.inner_bound, self.outer_bound], delaunay=False)
         plt.figure(figsize=(10, 10))
-        plt.triplot(*tri.pts.T, tri.triangles)
+        plt.triplot(*self.points.T, tri)
         plt.show()
     
     def test_constraint_edge(self):
@@ -38,8 +38,8 @@ class TriangleTests(unittest.TestCase):
         cb = [[0, n-1]]
         additional_pts = np.array([[-1., 0], [2, 0.]])
         pts = np.array(list(pts) + list(pts_upper) + list(additional_pts))
-        tri = PolyTri(pts, cb, holes=False, delaunay=False)
-        plt.triplot(*pts.T, tri.get_tris())
+        tri = poly_tri(pts, cb, holes=False, delaunay=False)
+        plt.triplot(*pts.T, tri)
         for i, p in enumerate(pts):
             plt.annotate(str(i), p)
         plt.show()
@@ -59,9 +59,9 @@ class TriangleTests(unittest.TestCase):
         pts += list(np.array([[0., 0.], [np.pi, 0.]]))
         cb += [[len(pts) - 2, len(pts) - 1]]
         pts = np.array(pts)
-        tri = PolyTri(np.array(pts), boundaries=cb, holes=True,
-                      boarder=[0, 1], delaunay=False)
-        plt.triplot(*pts.T, tri.get_tris())
+        tri = poly_tri(np.array(pts), boundaries=cb, holes=True,
+                      boarder=[0, 1], delaunay=True)
+        plt.triplot(*pts.T, tri)
         plt.show()
     
     def test_constraint_edge_2(self):
@@ -71,9 +71,10 @@ class TriangleTests(unittest.TestCase):
         pts = list(np.array([x, y]).T)
         pts.reverse()
         pts += list(np.array([[0., 0.], [np.pi, 0.]]))
-        tri = PolyTri(np.array(pts), boundaries=[list(range(len(pts))) + [0]], 
+        pts = np.array(pts)
+        tri = poly_tri(pts, boundaries=[list(range(len(pts))) + [0]], 
                       holes=True, delaunay=False)
-        plt.triplot(*pts.T, tri.get_tris())
+        plt.triplot(*pts.T, tri)
         plt.show()
     
     def test_easy(self):
@@ -88,8 +89,8 @@ class TriangleTests(unittest.TestCase):
                         [ 2.0943951,  -0.2339746 ],
                         [ 2.44346095, -0.45721239],
                         [ 3.14159265,  0.        ]])
-        tri = PolyTri(pts, [ul], holes=True, delaunay=False)
-        plt.triplot(*pts.T, tri.get_tris())
+        tri = poly_tri(pts, [ul], holes=True, delaunay=False)
+        plt.triplot(*pts.T, tri)
         plt.show()
     
     def test_easy_1(self):
@@ -100,15 +101,15 @@ class TriangleTests(unittest.TestCase):
                         [0.6, 0.1],
                         [0.8, 0.1],
                         [1.,  0. ]])
-        tri = PolyTri(pts, holes=False)
-        plt.triplot(*pts.T, tri.get_tris())
+        tri = poly_tri(pts, [ul], holes=False)
+        plt.triplot(*pts.T, tri)
         plt.show()
     
     def test_easy_2(self):
         pts = np.array([[-1, 0], [1, 0], [0., 0.5], [0., -0.5]])
         edge = [np.array([0, 1])]
-        tri = PolyTri(pts, edge, holes=False)
-        plt.triplot(*pts.T, tri.get_tris())
+        tri = poly_tri(pts, edge, holes=False)
+        plt.triplot(*pts.T, tri)
         plt.show()
     
     def test_ellipse(self):
@@ -117,9 +118,9 @@ class TriangleTests(unittest.TestCase):
         outer_pts *= np.array([2., 1.])
         inner_pts *= 0.5
         pts = np.array(list(inner_pts) + list(outer_pts))
-        tri = PolyTri(pts,[list(range(len(inner_pts)))], delaunay=False)
+        tri = poly_tri(pts,[list(range(len(inner_pts)))], delaunay=False)
         plt.figure(figsize=(10, 10))
-        plt.triplot(*pts.T, tri.get_tris())
+        plt.triplot(*pts.T, tri)
         plt.show()
     
     def test_profile(self):
@@ -161,10 +162,8 @@ class TriangleTests(unittest.TestCase):
                     [ 0.17947867, -0.00842979], 
                     [ 0.20052133, -0.00842979], 
                     [0.21754519, 0.00393877]])
-        tri = PolyTri(pts, [profile, hole], delaunay=False, holes=True)
-        plt.triplot(*pts.T, tri.get_tris())
-        for i, p in enumerate(tri.pts):
-            plt.annotate(str(i), p)
+        tri = poly_tri(pts, [profile, hole], delaunay=False, holes=True)
+        plt.triplot(*pts.T, tri)
         plt.show()
 if __name__ == '__main__':
     unittest.main()

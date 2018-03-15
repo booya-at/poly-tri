@@ -24,7 +24,6 @@ class PolyTri(object):
         self.boundary_edges = set()
         self.delaunay = delaunay
         self.appliedBoundary_edges = None
-        self.holes = None
         self.boundaries = boundaries
         self.boarder = boarder
 
@@ -71,8 +70,8 @@ class PolyTri(object):
         for i in range(3, len(self.pts)):
             self.addPoint(i)
         
-        # self.remove_empty()
-        # self.update_edge2tri()
+#        self.remove_empty()
+        self.update_edge2tri()
         
         if self.boundaries:
             self.constraintBoundaries()
@@ -233,7 +232,6 @@ class PolyTri(object):
         boundary_edges2add = set()
 
         for edge in self.boundary_edges:
-
             if self.isEdgeVisible(ip, edge):
 
                 # create new triangle
@@ -260,6 +258,7 @@ class PolyTri(object):
         # update the boundary edges
         for bedge in boundary_edges2remove:
             self.boundary_edges.remove(bedge)
+        
         for bedge in boundary_edges2add:
             bEdgeSorted = make_key(*bedge)
             if len(self.edge2tris[bEdgeSorted]) == 1:
@@ -269,13 +268,7 @@ class PolyTri(object):
 
         if self.delaunay:  # recursively flip edges
             self.flip_edges()
-        
-        for i, _ in enumerate(self.pts):
-            self.point2triangles[i] = set()
 
-        for i, tri in enumerate(self.triangles):
-            for j in tri:
-                self.point2triangles[j].add(i)
     
     def create_boundary_list(self, boarder=None, create_key=True):
         constrained_boundary = []
