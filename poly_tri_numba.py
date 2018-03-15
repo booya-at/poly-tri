@@ -4,7 +4,7 @@ import numba
 
 small = 1e-10
 
-@numba.jit
+@numba.jit(nopython=True)
 def make_key(i1, i2):
     """
     Make a tuple key such at i1 < i2
@@ -13,13 +13,12 @@ def make_key(i1, i2):
         return (i1, i2)
     return (i2, i1)
 
-
 def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, boarder=[]):
 
     # data structures
-    triangles = []  # cells
+    tris = []  # cells
     edge2tris = {}  # edge to triangle(s) map
-    point2triangles = {}
+    pnt2tris = {}
     boundary_edges = set()
 
     # compute center of gravity
@@ -39,9 +38,9 @@ def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, boarder=[]):
         index = 0
 
         tri = [index, index + 1, index + 2]
-        makeCounterClockwise(pts, tri)
-        if getArea(pts, *tri) > small:
-            triangles.append(tri)
+        maek_counter_clockwise(pts, tri)
+        if get_area(pts, *tri) > small:
+            tris.append(tri)
             break
         else:
             cg = pts[i]
@@ -63,23 +62,30 @@ def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, boarder=[]):
 
     # add additional pts
     for i in range(3, len(pts)):
-        addPoint(i, pts, edge2tris, triangles, boundary_edges,
-                 point2triangles, delaunay)
+        addPoint(i, pts, edge2tris, tris, boundary_edges,
+                 pnt2tris, delaunay)
 
-    update_edge2tri(triangles, edge2tris, point2triangles)
+    update_mapping(tris, edge2tris, pnt2tris)
 
     if boundaries:
-        constraintBoundaries(pts, edge2tris, point2triangles, triangles, 
+        constraintBoundaries(pts, edge2tris, pnt2tris, tris, 
                              boundaries, unorder)
         if holes:
-            remove_empty(pts, triangles)
-            update_edge2tri(triangles, edge2tris, point2triangles)
-            removeHoles(edge2tris, triangles, boundaries, boarder, unorder)
+            remove_empty(pts, tris)
+            update_mapping(tris, edge2tris, pnt2tris)
+            removeHoles(edge2tris, tris, boundaries, boarder, unorder)
     
-    return [order[tri] for tri in triangles]
+    return get_tris(order, tris)
 
 @numba.jit
-def getArea(pts, ip0, ip1, ip2):
+def get_tris(order, tris):
+    ordered_tris = []
+    for tri in tris:
+        ordered_tris.append(order[tri])
+    return ordered_tris
+
+@numba.jit
+def get_area(pts, ip0, ip1, ip2):
     """
     Compute the parallelipiped area
     @param ip0 index of first vertex
@@ -105,24 +111,24 @@ def isEdgeVisible(pts, ip, edge):
     @param edge (2 point indices with orientation)
     @return True if visible
     """
-    area = getArea(pts, ip, edge[0], edge[1])
+    area = get_area(pts, ip, edge[0], edge[1])
     if area < small:
         return True
     return False
 
 @numba.jit
-def makeCounterClockwise(pts, ips):
+def maek_counter_clockwise(pts, ips):
     """
     Re-order nodes to ensure positive area (in-place operation)
     """
-    area = getArea(pts, ips[0], ips[1], ips[2])
+    area = get_area(pts, ips[0], ips[1], ips[2])
     if area < -small:
         ip1, ip2 = ips[1], ips[2]
         # swap
         ips[1], ips[2] = ip2, ip1
 
 @numba.jit
-def flipOneEdge(edge, pts, edge2tris, triangles):
+def flipOneEdge(edge, pts, edge2tris, tris):
     """
     Flip one edge then update the data structures
     @return set of edges to interate over at next iteration
@@ -132,14 +138,14 @@ def flipOneEdge(edge, pts, edge2tris, triangles):
     res = set()
 
     # assume edge is sorted
-    tris = edge2tris.get(edge, [])
-    if len(tris) < 2:
+    _tris = edge2tris.get(edge, [])
+    if len(_tris) < 2:
             # nothing to do, just return
             return res
 
-    iTri1, iTri2 = tris
-    tri1 = triangles[iTri1]
-    tri2 = triangles[iTri2]
+    iTri1, iTri2 = _tris
+    tri1 = tris[iTri1]
+    tri2 = tris[iTri2]
 
     # find the opposite vertices, not part of the edge
     iOpposite1 = -1
@@ -155,8 +161,8 @@ def flipOneEdge(edge, pts, edge2tris, triangles):
     db1 = pts[edge[1]] - pts[iOpposite1]
     da2 = pts[edge[0]] - pts[iOpposite2]
     db2 = pts[edge[1]] - pts[iOpposite2]
-    crossProd1 = getArea(pts, iOpposite1, edge[0], edge[1])
-    crossProd2 = getArea(pts, iOpposite2, edge[1], edge[0])
+    crossProd1 = get_area(pts, iOpposite1, edge[0], edge[1])
+    crossProd2 = get_area(pts, iOpposite2, edge[1], edge[0])
     dotProd1 = np.dot(da1, db1)
     dotProd2 = np.dot(da2, db2)
     angle1 = abs(np.arctan2(crossProd1, dotProd1))
@@ -165,7 +171,7 @@ def flipOneEdge(edge, pts, edge2tris, triangles):
     # Delaunay's test
     if angle1 + angle2 > np.pi*(1.0 + small):
 
-        # flip the triangles
+        # flip the tris
         #                         / ^ \                                        / b \
         # iOpposite1 + a|b + iOpposite2    =>     + - > +
         #                         \     /                                        \ a /
@@ -174,8 +180,8 @@ def flipOneEdge(edge, pts, edge2tris, triangles):
         newTri2 = [iOpposite1, iOpposite2, edge[1]]  # triangle b
 
         # update the triangle data structure
-        triangles[iTri1] = newTri1
-        triangles[iTri2] = newTri2
+        tris[iTri1] = newTri1
+        tris[iTri2] = newTri2
 
         # now handle the topolgy of the edges
 
@@ -210,7 +216,7 @@ def flipOneEdge(edge, pts, edge2tris, triangles):
     return res
 
 @numba.jit
-def flip_edges(pts, edge2tris, triangles):
+def flip_edges(pts, edge2tris, tris):
     edgeSet = set(edge2tris.keys())
 
     continueFlipping = True
@@ -218,12 +224,12 @@ def flip_edges(pts, edge2tris, triangles):
     while continueFlipping:
         newEdgeSet = set()
         for edge in edgeSet:
-            newEdgeSet |= flipOneEdge(edge, pts, edge2tris, triangles)
+            newEdgeSet |= flipOneEdge(edge, pts, edge2tris, tris)
         edgeSet = copy.copy(newEdgeSet)
         continueFlipping = (len(edgeSet) > 0)
 
 @numba.jit
-def addPoint(ip, pts, edge2tris, triangles, boundary_edges, point2triangles, delaunay):
+def addPoint(ip, pts, edge2tris, tris, boundary_edges, pnt2tris, delaunay):
     """
     Add point
     @param ip point index
@@ -239,9 +245,9 @@ def addPoint(ip, pts, edge2tris, triangles, boundary_edges, point2triangles, del
             # create new triangle
             newTri = [edge[0], edge[1], ip]
             newTri.sort()
-            makeCounterClockwise(pts, newTri)
-            triangles.append(newTri)
-            iTri = len(triangles) - 1
+            maek_counter_clockwise(pts, newTri)
+            tris.append(newTri)
+            iTri = len(tris) - 1
 
             # add the two boundary edges
             e0 = make_key(*edge)
@@ -268,7 +274,7 @@ def addPoint(ip, pts, edge2tris, triangles, boundary_edges, point2triangles, del
             boundary_edges.add(bedge)
 
     if delaunay:  # recursively flip edges
-        flip_edges(pts, edge2tris, triangles)
+        flip_edges(pts, edge2tris, tris)
 
 def create_boundary_list(boundaries, unorder, boarder=None, create_key=True):
     constrained_boundary = []
@@ -283,7 +289,7 @@ def create_boundary_list(boundaries, unorder, boarder=None, create_key=True):
             constrained_boundary.append(item)
     return constrained_boundary
 
-def constraintBoundaries(pts, edge2tris, point2triangles, triangles, 
+def constraintBoundaries(pts, edge2tris, pnt2tris, tris, 
                          boundaries, unorder):
     boundary = create_boundary_list(boundaries, unorder)
     tris2remove = set()  # nr
@@ -292,19 +298,19 @@ def constraintBoundaries(pts, edge2tris, point2triangles, triangles,
         removed_edges = set()
         if cb not in edge2tris.keys():
             pt1, pt2 = cb
-            for tri in point2triangles[pt1]:
-                edge = copy.copy(triangles[tri])
+            for tri in pnt2tris[pt1]:
+                edge = copy.copy(tris[tri])
                 edge.remove(pt1)
                 edge = make_key(*edge)
                 if isIntersecting(pts, edge, cb):
                     tris2remove.add(tri)
                     break
-            edges = tri2edges(triangles[tri], create_key=True)
+            edges = tri2edges(tris[tri], create_key=True)
             edges.remove(edge)
             removed_edges.add(edges[0])
             removed_edges.add(edges[1])
             
-            if pt2 in triangles[tri]:
+            if pt2 in tris[tri]:
                 break
             for tri in edge2tris[edge]:
                 if tri not in tris2remove:
@@ -312,15 +318,15 @@ def constraintBoundaries(pts, edge2tris, point2triangles, triangles,
             while True:
                 tris2remove.add(tri)
 
-                edges = tri2edges(triangles[tri])
+                edges = tri2edges(tris[tri])
                 edges.remove(edge)
                 for edge in edges:
-                    if not pt2 in triangles[tri] and isIntersecting(pts, edge, cb):
+                    if not pt2 in tris[tri] and isIntersecting(pts, edge, cb):
                         tris2remove.add(tri)
                         edge_to_proceed = edge
                     else:
                         removed_edges.add(edge)
-                if pt2 in triangles[tri]:
+                if pt2 in tris[tri]:
                     break
                 edge = edge_to_proceed
                 for tri in edge2tris[edge]:
@@ -334,16 +340,16 @@ def constraintBoundaries(pts, edge2tris, point2triangles, triangles,
             else:
                 ul_cb = list(range(len(ul))) + [0]
                 ul, ll = np.array(ul), np.array(ll)
-                tris = poly_tri(pts[ul], [ul_cb], holes=True, delaunay=False)
-                tris = [ul[tri] for tri in tris]
-                tris2add += tris
+                _tris = poly_tri(pts[ul], [ul_cb], holes=True, delaunay=False)
+                _tris = [ul[tri] for tri in _tris]
+                tris2add += _tris
             if len(ll) == 3:
                 tris2add.append(ll)
             else:
                 ll_cb = list(range(len(ll))) + [0]
-                tris = poly_tri(pts[ll], [ll_cb], holes=True, delaunay=False)
-                tris = [ll[tri] for tri in tris]
-                tris2add += tris              
+                _tris = poly_tri(pts[ll], [ll_cb], holes=True, delaunay=False)
+                _tris = [ll[tri] for tri in _tris]
+                tris2add += _tris              
             
             # somehow we have to gather the edges!
             # and find a closed loop. Divide them by the edge which is
@@ -353,44 +359,47 @@ def constraintBoundaries(pts, edge2tris, point2triangles, triangles,
     tris2remove.sort()
     tris2remove.reverse()
     for tri in tris2remove:
-        triangles.pop(tri)
+        tris.pop(tri)
     for tri in tris2add:
-        triangles.append(list(tri))
-    for tri in triangles:
-        makeCounterClockwise(pts, tri)
-    update_edge2tri(triangles, edge2tris, point2triangles)
+        tris.append(list(tri))
+    for tri in tris:
+        maek_counter_clockwise(pts, tri)
+    update_mapping(tris, edge2tris, pnt2tris)
 
-@numba.jit
-def update_edge2tri(triangles, edge2tris, point2triangles):
+def update_mapping(tris, edge2tris, pnt2tris):
     edge2tris.clear()
-    point2triangles.clear()
-    for i, tri in enumerate(triangles):
+    pnt2tris.clear()
+    for i, tri in enumerate(tris):
         for edge in tri2edges(tri):
             e2t = edge2tris.get(edge, [])
             edge2tris[edge] = e2t + [i]
         for point in tri:
-            p2t = point2triangles.get(point, [])
-            point2triangles[point] = p2t + [i]
-            
-def remove_empty(pts, triangles):
-    remove_tris = []
-    for i, tri in enumerate(triangles):
-        makeCounterClockwise(pts, tri)
-        area = getArea(pts, *tri)
+            p2t = pnt2tris.get(point, [])
+            pnt2tris[point] = p2t + [i]
+  
+def remove_empty(pts, tris):
+    tris2remove = []
+    for i, tri in enumerate(tris):
+        maek_counter_clockwise(pts, tri)
+        area = get_area(pts, *tri)
         if area < 1e-10:
-            remove_tris.append(i)
+            tris2remove.append(i)
 
-    remove_tris.sort()
-    remove_tris.reverse()
-    for i in remove_tris:
-        triangles.pop(i)
+    tris2remove.sort()
+    tris2remove.reverse()
+    for i in tris2remove:
+        tris.pop(i)
 
+@numba.jit
 def tri2edges(tri, create_key=True):
     _tri = tri + [tri[0]]
-    if create_key:
-        return [make_key(*edge) for edge in zip(_tri[:-1], _tri[1:])]
-    else:
-        return [[*edge] for edge in zip(_tri[:-1], _tri[1:])]
+    output = []
+    for edge in zip(_tri[:-1], _tri[1:]):
+        if create_key:
+            output.append(make_key(*edge))
+        else:
+            output.append(list(edge))
+    return output
 
 def isIntersecting(pts, edge1, edge2):
     p11 = pts[edge1[0]]
@@ -406,15 +415,16 @@ def isIntersecting(pts, edge1, edge2):
         return False
     return (0 < c1 < 1) and (0 < c2 < 1)
 
-def removeHoles(edge2tris, triangles, boundaries, boarder, unorder):
+@numba.jit
+def removeHoles(edge2tris, tris, boundaries, boarder, unorder):
     bs = create_boundary_list(boundaries, unorder, boarder)
     o_bs = create_boundary_list(boundaries, unorder, boarder, create_key=False)
     remove_edges = set()
     for b, o_b in zip(bs, o_bs):
-        tris = edge2tris[b]
-        for tri in tris:
-            if o_b in tri2edges(triangles[tri], create_key=False):
-                edges = tri2edges(triangles[tri])
+        _tris = edge2tris[b]
+        for tri in _tris:
+            if o_b in tri2edges(tris[tri], create_key=False):
+                edges = tri2edges(tris[tri])
                 for edge in edges:
                     remove_edges.add(edge)
     for b in bs:
@@ -428,8 +438,9 @@ def removeHoles(edge2tris, triangles, boundaries, boarder, unorder):
     tris2remove.sort()
     tris2remove.reverse()
     for i in tris2remove:
-        triangles.pop(i)
+        tris.pop(i)
 
+@numba.jit
 def create_loop(pts, edges, start, end):
     loop = []
     points = set()
@@ -459,7 +470,9 @@ def create_loop(pts, edges, start, end):
             break
 
     # loop.append(start)
-    area = sum([edgeArea(pts, e) for e in zip(loop[:-1], loop[1:])])
+    area = 0
+    for e in zip(loop[:-1], loop[1:]):
+        area += edgeArea(pts, e)
     if area > 0:
         loop.reverse()
     

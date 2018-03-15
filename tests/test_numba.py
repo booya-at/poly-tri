@@ -9,7 +9,7 @@ from poly_tri_numba import poly_tri
 class TriangleTests(unittest.TestCase):
     @property
     def an_int(self):
-        return np.random.randint(10, 100)
+        return np.random.randint(10, 11)
 
     def setUp(self):
         self.phi = np.linspace(0, 2 * np.pi, self.an_int)

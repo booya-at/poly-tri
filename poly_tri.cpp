@@ -3,17 +3,31 @@
 #include <math.h>
 
 // TODO:
-// create boundary list
-// create ordered boundary
 // constraint boundaries
-// update_edge2tris
-// remove empty
-// is_intersecting
 // remove_holes
 // create loop
 
 
 double small = 1e-10;
+
+
+Edge kedge2edge(kEdge edge)
+{
+    Edge e;
+    int j = 0;
+    for (auto i_pnt: edge)
+    {
+        e[j] = i_pnt;
+        j++;
+    }
+    return e;
+}
+
+kEdge edge2kedge(Edge edge)
+{
+    return kEdge{edge[0], edge[1]};
+}
+
 
 std::vector<int> range(int l)
 {
@@ -93,7 +107,7 @@ PolyTri::PolyTri(Vecs pts, Boundaries boundaries, bool remove_holes, bool delaun
 // 5 add other points
     for (int i=3; i < pts.size(); i++)
     {
-    add_point(i);
+        add_point(i);
     }
     
 // 6 constraine boundaries
@@ -150,14 +164,14 @@ void PolyTri::add_point(int id_pnt)
     
         for (int i=0; i < pts.size(); i++)
     {
-            point2triangles[i] = std::vector<int>{};
+            pnt2tris[i] = std::vector<int>{};
     }
 
         for (int j=0; j < tris.size(); j++)
     {
             for (int k: tris[j])
         {
-                point2triangles[k].push_back(j);
+                pnt2tris[k].push_back(j);
         }
     }
     }
@@ -166,9 +180,9 @@ void PolyTri::add_point(int id_pnt)
 void PolyTri::append_tri(kEdge edge, int iTri)
 {
     if (edge2tris.find(edge) != edge2tris.end())
-    edge2tris[edge].push_back(iTri);
+        edge2tris[edge].push_back(iTri);
     else
-    edge2tris[edge] = std::vector<int>{iTri};  // empty triangle
+        edge2tris[edge] = std::vector<int>{iTri};  // empty triangle
 }
 
 
@@ -364,6 +378,13 @@ bool PolyTri::is_intersecting(Edge edge1, Edge edge2)
     return (0 < c(0) < 1) and (0 < c(1) < 1);
 }
 
+bool PolyTri::is_intersecting(kEdge edge1, kEdge edge2)
+{
+    Edge e1 = kedge2edge(edge1);
+    Edge e2 = kedge2edge(edge2);
+    return is_intersecting(e1, e2);
+}
+
 double PolyTri::get_area(Triangle& tri)
 {
     Vec p1 = pts[tri[0]];
@@ -411,6 +432,59 @@ void PolyTri::make_counter_clockwise(Triangle& tri)
     tri[1] = i2;
     }
 }
+
+void PolyTri::update_mapping()
+{
+    std::vector<int> _tris;
+    edge2tris.clear();
+    pnt2tris.clear();
+    int i = 0;
+    for (auto tri: tris)
+    {
+        for (auto edge: tri2edges(tri))
+        {
+            if (edge2tris.find(edge) != edge2tris.end())
+                edge2tris[edge].push_back(i);
+            else
+                edge2tris[edge] = std::vector<int>{i};
+        }
+        for (auto point: tri)
+        {
+            if (pnt2tris.find(point) != pnt2tris.end())
+                pnt2tris[point].push_back(i);
+            else
+                pnt2tris[point] = std::vector<int>{i};
+        }
+        i++;
+    }
+}
+
+kEdges PolyTri::tri2edges(Triangle tri)
+{
+    kEdges edges;
+    edges.insert(kEdge{tri[0], tri[1]});
+    edges.insert(kEdge{tri[1], tri[2]});
+    edges.insert(kEdge{tri[2], tri[0]});
+    return edges;
+}
+
+void PolyTri::remove_empty()
+{
+    std::set<int>tris2remove;
+    int i = 0;
+    double area;
+    for (auto tri: tris)
+    {
+        make_counter_clockwise(tri);
+        area = get_area(tri);
+        if (area < small)
+            tris2remove.insert(i);
+    }
+    std::vector<int> reverse_vec(tris2remove.rbegin(), tris2remove.rend());
+    for (int j : reverse_vec)
+        tris.erase(tris.begin() + j);
+}
+
 
 std::vector<int> PolyTri::sort_pts(Vec p0)
 {

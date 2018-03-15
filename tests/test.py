@@ -24,7 +24,7 @@ class TriangleTests(unittest.TestCase):
     def test_triangulization(self):
         tri = PolyTri(self.points, [self.inner_bound, self.outer_bound], delaunay=False)
         plt.figure(figsize=(10, 10))
-        plt.triplot(*tri.pts.T, tri.triangles)
+        plt.triplot(*tri.pts.T, tri.tris)
         plt.show()
     
     def test_constraint_edge(self):
@@ -71,7 +71,8 @@ class TriangleTests(unittest.TestCase):
         pts = list(np.array([x, y]).T)
         pts.reverse()
         pts += list(np.array([[0., 0.], [np.pi, 0.]]))
-        tri = PolyTri(np.array(pts), boundaries=[list(range(len(pts))) + [0]], 
+        pts = np.array(pts)
+        tri = PolyTri(pts, boundaries=[list(range(len(pts))) + [0]], 
                       holes=True, delaunay=False)
         plt.triplot(*pts.T, tri.get_tris())
         plt.show()

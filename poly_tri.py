@@ -18,9 +18,9 @@ class PolyTri(object):
 
         # data structures
         self.pts = pts[:]  # copy
-        self.triangles = []  # cells
+        self.tris = []  # cells
         self.edge2tris = {}  # edge to triangle(s) map
-        self.point2triangles = {}
+        self.pnt2tris = {}
         self.boundary_edges = set()
         self.delaunay = delaunay
         self.appliedBoundary_edges = None
@@ -44,9 +44,9 @@ class PolyTri(object):
             index = 0
     
             tri = [index, index + 1, index + 2]
-            self.makeCounterClockwise(tri)
-            if self.getArea(*tri) > self.small:
-                self.triangles.append(tri)
+            self.make_counter_clockwise(tri)
+            if self.get_area(*tri) > self.small:
+                self.tris.append(tri)
                 break
             else:
                 cg = self.pts[i]
@@ -71,19 +71,19 @@ class PolyTri(object):
             self.addPoint(i)
         
 #        self.remove_empty()
-        self.update_edge2tri()
+        self.update_mapping()
         
         if self.boundaries:
             self.constraintBoundaries()
             if holes:
                 self.remove_empty()
-                self.update_edge2tri()
+                self.update_mapping()
                 self.removeHoles()
     
     def get_tris(self):
-        return [self.order[tri] for tri in self.triangles]
+        return [self.order[tri] for tri in self.tris]
 
-    def getArea(self, ip0, ip1, ip2):
+    def get_area(self, ip0, ip1, ip2):
         """
         Compute the parallelipiped area
         @param ip0 index of first vertex
@@ -107,16 +107,16 @@ class PolyTri(object):
         @param edge (2 point indices with orientation)
         @return True if visible
         """
-        area = self.getArea(ip, edge[0], edge[1])
+        area = self.get_area(ip, edge[0], edge[1])
         if area < self.small:
             return True
         return False
 
-    def makeCounterClockwise(self, ips):
+    def make_counter_clockwise(self, ips):
         """
         Re-order nodes to ensure positive area (in-place operation)
         """
-        area = self.getArea(ips[0], ips[1], ips[2])
+        area = self.get_area(ips[0], ips[1], ips[2])
         if area < -self.small:
             ip1, ip2 = ips[1], ips[2]
             # swap
@@ -138,8 +138,8 @@ class PolyTri(object):
                 return res
 
         iTri1, iTri2 = tris
-        tri1 = self.triangles[iTri1]
-        tri2 = self.triangles[iTri2]
+        tri1 = self.tris[iTri1]
+        tri2 = self.tris[iTri2]
 
         # find the opposite vertices, not part of the edge
         iOpposite1 = -1
@@ -155,8 +155,8 @@ class PolyTri(object):
         db1 = self.pts[edge[1]] - self.pts[iOpposite1]
         da2 = self.pts[edge[0]] - self.pts[iOpposite2]
         db2 = self.pts[edge[1]] - self.pts[iOpposite2]
-        crossProd1 = self.getArea(iOpposite1, edge[0], edge[1])
-        crossProd2 = self.getArea(iOpposite2, edge[1], edge[0])
+        crossProd1 = self.get_area(iOpposite1, edge[0], edge[1])
+        crossProd2 = self.get_area(iOpposite2, edge[1], edge[0])
         dotProd1 = np.dot(da1, db1)
         dotProd2 = np.dot(da2, db2)
         angle1 = abs(np.arctan2(crossProd1, dotProd1))
@@ -165,7 +165,7 @@ class PolyTri(object):
         # Delaunay's test
         if angle1 + angle2 > np.pi*(1.0 + self.small):
 
-            # flip the triangles
+            # flip the tris
             #                         / ^ \                                        / b \
             # iOpposite1 + a|b + iOpposite2    =>     + - > +
             #                         \     /                                        \ a /
@@ -174,8 +174,8 @@ class PolyTri(object):
             newTri2 = [iOpposite1, iOpposite2, edge[1]]  # triangle b
 
             # update the triangle data structure
-            self.triangles[iTri1] = newTri1
-            self.triangles[iTri2] = newTri2
+            self.tris[iTri1] = newTri1
+            self.tris[iTri2] = newTri2
 
             # now handle the topolgy of the edges
 
@@ -237,9 +237,9 @@ class PolyTri(object):
                 # create new triangle
                 newTri = [edge[0], edge[1], ip]
                 newTri.sort()
-                self.makeCounterClockwise(newTri)
-                self.triangles.append(newTri)
-                iTri = len(self.triangles) - 1
+                self.make_counter_clockwise(newTri)
+                self.tris.append(newTri)
+                iTri = len(self.tris) - 1
 
                 # add the two boundary edges
                 e0 = make_key(*edge)
@@ -291,19 +291,19 @@ class PolyTri(object):
             removed_edges = set()
             if cb not in self.edge2tris.keys():
                 pt1, pt2 = cb
-                for tri in self.point2triangles[pt1]:
-                    edge = copy.copy(self.triangles[tri])
+                for tri in self.pnt2tris[pt1]:
+                    edge = copy.copy(self.tris[tri])
                     edge.remove(pt1)
                     edge = make_key(*edge)
                     if self.isIntersecting(edge, cb):
                         tris2remove.add(tri)
                         break
-                edges = self.tri2edges(self.triangles[tri], create_key=True)
+                edges = self.tri2edges(self.tris[tri], create_key=True)
                 edges.remove(edge)
                 removed_edges.add(edges[0])
                 removed_edges.add(edges[1])
                 
-                if pt2 in self.triangles[tri]:
+                if pt2 in self.tris[tri]:
                     break
                 for tri in self.edge2tris[edge]:
                     if tri not in tris2remove:
@@ -311,15 +311,15 @@ class PolyTri(object):
                 while True:
                     tris2remove.add(tri)
 
-                    edges = self.tri2edges(self.triangles[tri])
+                    edges = self.tri2edges(self.tris[tri])
                     edges.remove(edge)
                     for edge in edges:
-                        if not pt2 in self.triangles[tri] and self.isIntersecting(edge, cb):
+                        if not pt2 in self.tris[tri] and self.isIntersecting(edge, cb):
                             tris2remove.add(tri)
                             edge_to_proceed = edge
                         else:
                             removed_edges.add(edge)
-                    if pt2 in self.triangles[tri]:
+                    if pt2 in self.tris[tri]:
                         break
                     edge = edge_to_proceed
                     for tri in self.edge2tris[edge]:
@@ -352,37 +352,37 @@ class PolyTri(object):
         tris2remove.sort()
         tris2remove.reverse()
         for tri in tris2remove:
-            self.triangles.pop(tri)
+            self.tris.pop(tri)
         for tri in tris2add:
-            self.triangles.append(list(tri))
-        for tri in self.triangles:
-            self.makeCounterClockwise(tri)
-        self.update_edge2tri()
+            self.tris.append(list(tri))
+        for tri in self.tris:
+            self.make_counter_clockwise(tri)
+        self.update_mapping()
 
-    def update_edge2tri(self):
+    def update_mapping(self):
         self.edge2tris = {}
-        self.point2triangles = {}
-        for i, tri in enumerate(self.triangles):
+        self.pnt2tris = {}
+        for i, tri in enumerate(self.tris):
             for edge in self.tri2edges(tri):
                 e2t = self.edge2tris.get(edge, [])
                 self.edge2tris[edge] = e2t + [i]
             for point in tri:
-                p2t = self.point2triangles.get(point, [])
-                self.point2triangles[point] = p2t + [i]
+                p2t = self.pnt2tris.get(point, [])
+                self.pnt2tris[point] = p2t + [i]
                 
 
     def remove_empty(self):
-        remove_tris = []
-        for i, tri in enumerate(self.triangles):
-            self.makeCounterClockwise(tri)
-            area = self.getArea(*tri)
+        tris2remove = []
+        for i, tri in enumerate(self.tris):
+            self.make_counter_clockwise(tri)
+            area = self.get_area(*tri)
             if area < 1e-10:
-                remove_tris.append(i)
+                tris2remove.append(i)
 
-        remove_tris.sort()
-        remove_tris.reverse()
-        for i in remove_tris:
-            self.triangles.pop(i)
+        tris2remove.sort()
+        tris2remove.reverse()
+        for i in tris2remove:
+            self.tris.pop(i)
 
     def tri2edges(self, tri, create_key=True):
         _tri = tri + [tri[0]]
@@ -412,8 +412,8 @@ class PolyTri(object):
         for b, o_b in zip(bs, o_bs):
             tris = self.edge2tris[b]
             for tri in tris:
-                if o_b in self.tri2edges(self.triangles[tri], create_key=False):
-                    edges = self.tri2edges(self.triangles[tri])
+                if o_b in self.tri2edges(self.tris[tri], create_key=False):
+                    edges = self.tri2edges(self.tris[tri])
                     for edge in edges:
                         remove_edges.add(edge)
         for b in bs:
@@ -427,7 +427,7 @@ class PolyTri(object):
         tris2remove.sort()
         tris2remove.reverse()
         for i in tris2remove:
-            self.triangles.pop(i)
+            self.tris.pop(i)
     
     def create_loop(self, edges, start, end):
         loop = []

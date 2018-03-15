@@ -35,12 +35,13 @@ public:
     std::map<int, int> order;
     std::map<int, int> unorder;
     Edge2Tris edge2tris;
-    Point2Tris point2triangles;
+    Point2Tris pnt2tris;
 
     PolyTri(Vecs pts, Boundaries boundaries, bool remove_holes,
 	     bool delaunay, std::list<int> isBoarder);
     void add_point(int id_pnt);
     bool is_intersecting(Edge edge1, Edge edge2);
+    bool is_intersecting(kEdge edg1, kEdge edge2);
     bool is_edge_visible(Edge edge, int id_pnt);
     double get_edge_area(Edge edge, Vec pnt);
     double get_edge_area(Edge edge);
@@ -52,4 +53,7 @@ public:
     void append_tri(kEdge edge, int iTri);
     kEdges create_boundary_list(std::vector<int> boarder);
     Edges create_ordered_boundary_list(std::vector<int> boarder);
+    void update_mapping();
+    kEdges tri2edges(Triangle tri);
+    void remove_empty();
 };
