@@ -315,12 +315,12 @@ void PolyTri::flip_edges()
     }
 }
 
-kEdges PolyTri::create_boundary_list(std::vector<int> boarder)
+kEdges PolyTri::create_boundary_list(std::vector<int> border)
 {
     kEdges constrained_boundary;
     for (int k; k < boundaries.size(); k++)
     {
-        if (std::find(boarder.begin(), boarder.end(), k) != boarder.end())
+        if (std::find(border.begin(), border.end(), k) != border.end())
             continue;
         Boundary boundary = boundaries[k];
         int b0 = unorder[boundary[0]];
@@ -335,12 +335,12 @@ kEdges PolyTri::create_boundary_list(std::vector<int> boarder)
     return constrained_boundary;
 }
 
-Edges PolyTri::create_ordered_boundary_list(std::vector<int> boarder)
+Edges PolyTri::create_ordered_boundary_list(std::vector<int> border)
 {
     Edges constrained_boundary;
     for (int k; k < boundaries.size(); k++)
     {
-        if (std::find(boarder.begin(), boarder.end(), k) != boarder.end())
+        if (std::find(border.begin(), border.end(), k) != border.end())
             continue;
         Boundary boundary = boundaries[k];
         int b0 = unorder[boundary[0]];

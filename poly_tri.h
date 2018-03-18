@@ -51,8 +51,8 @@ public:
     void flip_edges();
     kEdges flip_one_edge(kEdge edge);
     void append_tri(kEdge edge, int iTri);
-    kEdges create_boundary_list(std::vector<int> boarder);
-    Edges create_ordered_boundary_list(std::vector<int> boarder);
+    kEdges create_boundary_list(std::vector<int> border);
+    Edges create_ordered_boundary_list(std::vector<int> border);
     void update_mapping();
     kEdges tri2edges(Triangle tri);
     void remove_empty();

@@ -14,7 +14,7 @@ class PolyTri(object):
 
     small = 1e-10
 
-    def __init__(self, pts, boundaries=None, delaunay=True, holes=True, boarder=[]):
+    def __init__(self, pts, boundaries=None, delaunay=True, holes=True, border=[]):
 
         # data structures
         self.pts = pts[:]  # copy
@@ -25,7 +25,7 @@ class PolyTri(object):
         self.delaunay = delaunay
         self.appliedBoundary_edges = None
         self.boundaries = boundaries
-        self.boarder = boarder
+        self.border = border
 
         # compute center of gravity
 
@@ -270,10 +270,10 @@ class PolyTri(object):
             self.flip_edges()
 
     
-    def create_boundary_list(self, boarder=None, create_key=True):
+    def create_boundary_list(self, border=None, create_key=True):
         constrained_boundary = []
         for k, boundary in enumerate(self.boundaries):
-            if boarder and k not in boarder:
+            if border and k not in border:
                 continue
             b = self.unorder[boundary]
             for i, j in zip(b[:-1], b[1:]):
@@ -406,8 +406,8 @@ class PolyTri(object):
         return (0 < c1 < 1) and (0 < c2 < 1)
 
     def removeHoles(self):
-        bs = self.create_boundary_list(self.boarder)
-        o_bs = self.create_boundary_list(self.boarder, create_key=False)
+        bs = self.create_boundary_list(self.border)
+        o_bs = self.create_boundary_list(self.border, create_key=False)
         remove_edges = set()
         for b, o_b in zip(bs, o_bs):
             tris = self.edge2tris[b]

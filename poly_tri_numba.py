@@ -13,7 +13,7 @@ def make_key(i1, i2):
         return (i1, i2)
     return (i2, i1)
 
-def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, boarder=[]):
+def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, border=[]):
 
     # data structures
     tris = []  # cells
@@ -73,7 +73,7 @@ def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, boarder=[]):
         if holes:
             remove_empty(pts, tris)
             update_mapping(tris, edge2tris, pnt2tris)
-            removeHoles(edge2tris, tris, boundaries, boarder, unorder)
+            removeHoles(edge2tris, tris, boundaries, border, unorder)
     
     return get_tris(order, tris)
 
@@ -276,10 +276,10 @@ def addPoint(ip, pts, edge2tris, tris, boundary_edges, pnt2tris, delaunay):
     if delaunay:  # recursively flip edges
         flip_edges(pts, edge2tris, tris)
 
-def create_boundary_list(boundaries, unorder, boarder=None, create_key=True):
+def create_boundary_list(boundaries, unorder, border=None, create_key=True):
     constrained_boundary = []
     for k, boundary in enumerate(boundaries):
-        if boarder and k not in boarder:
+        if border and k not in border:
             continue
         b = unorder[boundary]
         for i, j in zip(b[:-1], b[1:]):
@@ -416,9 +416,9 @@ def isIntersecting(pts, edge1, edge2):
     return (0 < c1 < 1) and (0 < c2 < 1)
 
 @numba.jit
-def removeHoles(edge2tris, tris, boundaries, boarder, unorder):
-    bs = create_boundary_list(boundaries, unorder, boarder)
-    o_bs = create_boundary_list(boundaries, unorder, boarder, create_key=False)
+def removeHoles(edge2tris, tris, boundaries, border, unorder):
+    bs = create_boundary_list(boundaries, unorder, border)
+    o_bs = create_boundary_list(boundaries, unorder, border, create_key=False)
     remove_edges = set()
     for b, o_b in zip(bs, o_bs):
         _tris = edge2tris[b]
