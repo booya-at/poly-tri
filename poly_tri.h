@@ -28,17 +28,17 @@ public:
     Triangles tris;
     Vecs pts;
     Boundaries boundaries;
-    bool remove_holes;
+    bool _remove_holes;
     bool delaunay;
     Edges boundary_edges;
-    std::vector<int> isBoarder;
+    std::vector<int> is_border;
     std::map<int, int> order;
     std::map<int, int> unorder;
     Edge2Tris edge2tris;
     Point2Tris pnt2tris;
 
     PolyTri(Vecs pts, Boundaries boundaries, bool remove_holes,
-	     bool delaunay, std::list<int> isBoarder);
+	     bool delaunay, std::list<int> is_border);
     void add_point(int id_pnt);
     bool is_intersecting(Edge edge1, Edge edge2);
     bool is_intersecting(kEdge edg1, kEdge edge2);
@@ -57,4 +57,5 @@ public:
     kEdges tri2edges(Triangle tri);
     void remove_empty();
     Boundaries create_loop(kEdges edges, int start, int end);
+    void remove_holes();
 };

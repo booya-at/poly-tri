@@ -36,13 +36,13 @@ std::vector<int> range(int l)
     return y;
 }
 
-PolyTri::PolyTri(Vecs pts, Boundaries boundaries, bool remove_holes, bool delaunay, std::list<int> isBoarder)
+PolyTri::PolyTri(Vecs pts, Boundaries boundaries, bool remove_holes, bool delaunay, std::list<int> is_border)
 {
     pts = pts;
     boundaries = boundaries;
-    remove_holes = remove_holes;
+    _remove_holes = remove_holes;
     delaunay = delaunay;
-    isBoarder = isBoarder;
+    is_border = is_border;
     
 // 1 order points by distance to a point
     Vec cg(0, 0);
@@ -561,4 +561,33 @@ Boundaries PolyTri::create_loop(kEdges edges, int start, int end)
                 lower_loop.push_back(i);
         }
         return Boundaries{upper_loop, lower_loop};
+}
+
+PolyTri::remove_holes()
+{
+        kEdges bs = create_boundary_list(is_border);
+        Edges o_bs = create_ordered_boundary_list(is_border);
+        kEdges remove_edges;
+        for (int i=0; i<bs.size(); i++)
+        {
+            Edge ob = 
+            tris = self.edge2tris[b]
+            for tri in tris:
+                if o_b in self.tri2edges(self.tris[tri], create_key=False):
+                    edges = self.tri2edges(self.tris[tri])
+                    for edge in edges:
+                        remove_edges.add(edge)
+        }
+        for b in bs:
+            if b in remove_edges:
+                remove_edges.remove(b)
+        tris2remove = set()
+        for edge in remove_edges:
+            for tri in self.edge2tris[edge]:
+                tris2remove.add(tri)
+        tris2remove = list(tris2remove)
+        tris2remove.sort()
+        tris2remove.reverse()
+        for i in tris2remove:
+            self.tris.pop(i)
 }
