@@ -5,7 +5,6 @@
 // TODO:
 // constraint boundaries
 // remove_holes
-// create loop
 
 
 double small = 1e-10;
@@ -502,4 +501,64 @@ std::vector<int> PolyTri::sort_pts(Vec p0)
     std::generate(sorted_pts.begin(), sorted_pts.end(), [&]{return pts[sort_ind[i++]]; } );
     pts = sorted_pts;
     return sort_ind;    
+}
+
+
+Boundaries PolyTri::create_loop(kEdges edges, int start, int end)
+{
+        std::vector<int> loop;
+        std::map<int, std::vector<std::vector<int>>>point2edge;
+        for (auto edge: edges)
+        {
+            for (auto p: edge)
+            {
+                if (point2edge.find(p) != point2edge.end())
+                    point2edge[p].push_back(std::vector<int>(edge.begin(), edge.end()));
+                else
+                    point2edge[p] = std::vector<std::vector<int>>{std::vector<int>(edge.begin(), edge.end())};
+            }            
+        }
+        int p0 = start;
+        std::vector<int> e0 = point2edge[p0][0];
+        loop.push_back(start);
+        int p1;
+        std::vector<int> e1;
+        double area = 0;
+        while (true)
+        {
+            // p1 is the other point of the edge
+            p1 = e0[0];
+            if (p1 == p0)
+                p1 = e0[1];
+            loop.push_back(p1);
+            e1 = point2edge[p1][0];
+            if (e1 == e0)
+                e1 = point2edge[p1][1];
+            e0 = e1;
+            p0 = p1;
+            area += get_edge_area(Edge{p0, p1}, Vec{0, 0});
+            if (p0 == start)
+                break;
+        }
+
+        // loop.append(start)
+        if (area > 0)
+            loop = std::vector<int>(loop.rbegin(), loop.rend());
+        std::vector<int> lower_loop, upper_loop;
+        bool insert_upper = true;
+        for (int i: loop)
+        {
+            if (insert_upper)
+            {
+                upper_loop.push_back(i);
+                if (i == end)
+                {
+                    insert_upper = false;
+                    lower_loop.push_back(i);
+                }
+            }
+            else
+                lower_loop.push_back(i);
+        }
+        return Boundaries{upper_loop, lower_loop};
 }

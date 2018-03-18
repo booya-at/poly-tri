@@ -431,11 +431,8 @@ class PolyTri(object):
     
     def create_loop(self, edges, start, end):
         loop = []
-        points = set()
         point2edge = {}
         for edge in edges:
-            points.add(edge[0])
-            points.add(edge[1])
             p2e = point2edge.get(edge[0], [])
             point2edge[edge[0]] = p2e + [edge]
             p2e = point2edge.get(edge[1], [])
@@ -454,10 +451,9 @@ class PolyTri(object):
                 e1 = point2edge[p1][1]
             e0 = e1
             p0 = p1
-            if p0==start:
+            if p0 == start:
                 break
 
-        # loop.append(start)
         area = sum([self.edgeArea(e) for e in zip(loop[:-1], loop[1:])])
         if area > 0:
             loop.reverse()

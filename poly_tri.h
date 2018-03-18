@@ -17,7 +17,7 @@ typedef std::set<int> kEdge;   //key edge
 typedef std::set<Edge> Edges;
 typedef std::set<kEdge> kEdges;
 typedef std::vector<int> Boundary;
-typedef std::vector<std::vector<int>> Boundaries;
+typedef std::vector<Boundary> Boundaries;
 typedef std::map<kEdge, std::vector<int>> Edge2Tris;
 typedef std::map<int, std::vector<int>> Point2Tris;
 
@@ -56,4 +56,5 @@ public:
     void update_mapping();
     kEdges tri2edges(Triangle tri);
     void remove_empty();
+    Boundaries create_loop(kEdges edges, int start, int end);
 };
