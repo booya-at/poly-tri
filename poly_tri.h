@@ -54,7 +54,8 @@ public:
     kEdges create_boundary_list(std::vector<int> border);
     Edges create_ordered_boundary_list(std::vector<int> border);
     void update_mapping();
-    kEdges tri2edges(Triangle tri);
+    Edges tri2edges(Triangle tri);
+    kEdges tri2ordered_edges(Triangle tri);
     void remove_empty();
     Boundaries create_loop(kEdges edges, int start, int end);
     void remove_holes();

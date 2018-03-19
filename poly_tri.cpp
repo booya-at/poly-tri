@@ -440,7 +440,7 @@ void PolyTri::update_mapping()
     int i = 0;
     for (auto tri: tris)
     {
-        for (auto edge: tri2edges(tri))
+        for (auto edge: tri2ordered_edges(tri))
         {
             if (edge2tris.find(edge) != edge2tris.end())
                 edge2tris[edge].push_back(i);
@@ -458,7 +458,16 @@ void PolyTri::update_mapping()
     }
 }
 
-kEdges PolyTri::tri2edges(Triangle tri)
+Edges PolyTri::tri2edges(Triangle tri)
+{
+    Edges edges;
+    edges.insert(Edge{tri[0], tri[1]});
+    edges.insert(Edge{tri[1], tri[2]});
+    edges.insert(Edge{tri[2], tri[0]});
+    return edges;
+}
+
+kEdges PolyTri::tri2ordered_edges(Triangle tri)
 {
     kEdges edges;
     edges.insert(kEdge{tri[0], tri[1]});
@@ -563,31 +572,41 @@ Boundaries PolyTri::create_loop(kEdges edges, int start, int end)
         return Boundaries{upper_loop, lower_loop};
 }
 
-PolyTri::remove_holes()
+void PolyTri::remove_holes()
 {
-        kEdges bs = create_boundary_list(is_border);
-        Edges o_bs = create_ordered_boundary_list(is_border);
+        kEdges _bs = create_boundary_list(is_border);
+        Edges _o_bs = create_ordered_boundary_list(is_border);
+        // create a vector from the set to use [] operator
+        std::vector<kEdge> bs(bs.begin(), bs.end());
+        std::vector<Edge> o_bs(_o_bs.begin(), _o_bs.end());
         kEdges remove_edges;
         for (int i=0; i<bs.size(); i++)
         {
-            Edge ob = 
-            tris = self.edge2tris[b]
-            for tri in tris:
-                if o_b in self.tri2edges(self.tris[tri], create_key=False):
-                    edges = self.tri2edges(self.tris[tri])
-                    for edge in edges:
-                        remove_edges.add(edge)
+            Edge ob = o_bs[i];
+            kEdge b = bs[i];
+            std::vector<int> _tris = edge2tris[b];
+            for (int tri: _tris)
+            {
+                kEdges ordered_edges = tri2ordered_edges(tris[tri]);
+                if (ordered_edges.find(ob) != ordered_edges.end())
+                {
+                    for (auto edge: tri2edges(tris[tri]))
+                        remove_edges.insert(edge);
+                }
+            }
         }
-        for b in bs:
-            if b in remove_edges:
-                remove_edges.remove(b)
-        tris2remove = set()
-        for edge in remove_edges:
-            for tri in self.edge2tris[edge]:
-                tris2remove.add(tri)
-        tris2remove = list(tris2remove)
-        tris2remove.sort()
-        tris2remove.reverse()
-        for i in tris2remove:
-            self.tris.pop(i)
+        for (auto b: bs)
+        {
+            if (remove_edges.find(b) != remove_edges.end())
+                remove_edges.erase(b);
+        }
+        std::set<int> tris2remove;
+        for (auto edge: remove_edges)
+        {
+            for (auto tri: edge2tris[edge])
+                tris2remove.insert(tri)
+        }
+        std::vector<int> reversed_tris2remove(tris2remove.rbegin(), tris2remove.rend());
+        for (auto i: reversed_tris2remove)
+            tris.erase(tris.begin() + i);
 }
