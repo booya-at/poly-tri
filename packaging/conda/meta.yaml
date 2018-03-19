@@ -1,0 +1,39 @@
+package:
+    name: poly-tri
+    version: 0.0.1
+
+build:
+    number: 0
+    skip: true  # [(win and not py36)]
+
+    features:
+        - vc14  # [(win and py36)]
+
+requirements:
+    build:
+        - toolchain
+        - nomkl  # [unix]
+        - vc 14  # [win]
+        - gcc  # [unix]
+        - python
+        - pybind11
+        - cmake
+        - python
+        - ninja
+    run:
+        - vc 14  # [win]
+        - libgcc  # [unix]
+        - python
+
+
+about:
+    home: https://github.com/booya/poly-tri
+    # license: LGPL2
+    # license_file: LICENSE
+    summary: delaunary algo, edge-constraining, hole-removal
+    doc_url: https://github.com/booya/poly-tri
+    dev_url: https://github.com/booya/poly-tri
+
+extra:
+    recipe-maintainers:
+        - looooo
