@@ -60,7 +60,7 @@ class TriangleTests(unittest.TestCase):
         cb += [[len(pts) - 2, len(pts) - 1]]
         pts = np.array(pts)
         tri = poly_tri(np.array(pts), boundaries=cb, holes=True,
-                      boarder=[0, 1], delaunay=True)
+                      border=[0, 1], delaunay=True)
         plt.triplot(*pts.T, tri)
         plt.show()
     

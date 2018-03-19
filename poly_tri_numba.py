@@ -302,7 +302,7 @@ def constraintBoundaries(pts, edge2tris, pnt2tris, tris,
                 edge = copy.copy(tris[tri])
                 edge.remove(pt1)
                 edge = make_key(*edge)
-                if isIntersecting(pts, edge, cb):
+                if is_instersecting(pts, edge, cb):
                     tris2remove.add(tri)
                     break
             edges = tri2edges(tris[tri], create_key=True)
@@ -321,40 +321,34 @@ def constraintBoundaries(pts, edge2tris, pnt2tris, tris,
                 edges = tri2edges(tris[tri])
                 edges.remove(edge)
                 for edge in edges:
-                    if not pt2 in tris[tri] and isIntersecting(pts, edge, cb):
+                    if not pt2 in tris[tri] and is_instersecting(pts, edge, cb):
                         tris2remove.add(tri)
-                        edge_to_proceed = edge
+                        edge2proceed = edge
                     else:
                         removed_edges.add(edge)
                 if pt2 in tris[tri]:
                     break
-                edge = edge_to_proceed
+                edge = edge2proceed
                 for tri in edge2tris[edge]:
                     if tri not in tris2remove:
                        break
 
             
-            ul, ll = create_loop(pts, removed_edges, cb[0], cb[1])
-            if len(ul) == 3:
-                tris2add.append(ul)
-            else:
-                ul_cb = list(range(len(ul))) + [0]
-                ul, ll = np.array(ul), np.array(ll)
-                _tris = poly_tri(pts[ul], [ul_cb], holes=True, delaunay=False)
-                _tris = [ul[tri] for tri in _tris]
-                tris2add += _tris
-            if len(ll) == 3:
-                tris2add.append(ll)
-            else:
-                ll_cb = list(range(len(ll))) + [0]
-                _tris = poly_tri(pts[ll], [ll_cb], holes=True, delaunay=False)
-                _tris = [ll[tri] for tri in _tris]
-                tris2add += _tris              
+            loops = create_loop(pts, removed_edges, cb[0], cb[1])
+            for loop in loops:
+                if len(loop) == 3:
+                    tris2add.append(loop)
+                else:
+                    loop_cb = list(range(len(loop))) + [0]
+                    loop = np.array(loop)
+                    _tris = poly_tri(pts[loop], [loop_cb], holes=True, delaunay=False)
+                    _tris = [loop[tri] for tri in _tris]
+                    tris2add += _tris     
             
-            # somehow we have to gather the edges!
-            # and find a closed loop. Divide them by the edge which is
-            # inserted and fill up the hole -> a full PolyTri with edge
-            # constraining and boundary removal.
+    # somehow we have to gather the edges!
+    # and find a closed loop. Divide them by the edge which is
+    # inserted and fill up the hole -> a full PolyTri with edge
+    # constraining and boundary removal.
     tris2remove = list(tris2remove)
     tris2remove.sort()
     tris2remove.reverse()
@@ -401,7 +395,7 @@ def tri2edges(tri, create_key=True):
             output.append(list(edge))
     return output
 
-def isIntersecting(pts, edge1, edge2):
+def is_instersecting(pts, edge1, edge2):
     p11 = pts[edge1[0]]
     p12 = pts[edge1[1]]
     p21 = pts[edge2[0]]

@@ -295,7 +295,7 @@ class PolyTri(object):
                     edge = copy.copy(self.tris[tri])
                     edge.remove(pt1)
                     edge = make_key(*edge)
-                    if self.isIntersecting(edge, cb):
+                    if self.is_intersecting(edge, cb):
                         tris2remove.add(tri)
                         break
                 edges = self.tri2edges(self.tris[tri], create_key=True)
@@ -314,40 +314,35 @@ class PolyTri(object):
                     edges = self.tri2edges(self.tris[tri])
                     edges.remove(edge)
                     for edge in edges:
-                        if not pt2 in self.tris[tri] and self.isIntersecting(edge, cb):
+                        if not pt2 in self.tris[tri] and self.is_intersecting(edge, cb):
                             tris2remove.add(tri)
-                            edge_to_proceed = edge
+                            edge2proceed = edge
                         else:
                             removed_edges.add(edge)
                     if pt2 in self.tris[tri]:
                         break
-                    edge = edge_to_proceed
+                    edge = edge2proceed
                     for tri in self.edge2tris[edge]:
                         if tri not in tris2remove:
                            break
 
                 
-                ul, ll = self.create_loop(removed_edges, cb[0], cb[1])
-                if len(ul) == 3:
-                    tris2add.append(ul)
-                else:
-                    ul_cb = list(range(len(ul))) + [0]
-                    ul, ll = np.array(ul), np.array(ll)
-                    tris = PolyTri(self.pts[ul], [ul_cb], holes=True, delaunay=False).get_tris()
-                    tris = [ul[tri] for tri in tris]
-                    tris2add += tris
-                if len(ll) == 3:
-                    tris2add.append(ll)
-                else:
-                    ll_cb = list(range(len(ll))) + [0]
-                    tris = PolyTri(self.pts[ll], [ll_cb], holes=True, delaunay=False).get_tris()
-                    tris = [ll[tri] for tri in tris]
-                    tris2add += tris              
+                loops = self.create_loop(removed_edges, cb[0], cb[1])
+                for loop in loops:
+                    if len(loop) == 3:
+                        tris2add.append(loop)
+                    else:
+                        loop_cb = list(range(len(loop))) + [0]
+                        loop = np.array(loop)
+                        tris = PolyTri(self.pts[loop], [loop_cb], holes=True, delaunay=False).get_tris()
+                        tris = [loop[tri] for tri in tris]
+                        tris2add += tris
+
                 
-                # somehow we have to gather the edges!
-                # and find a closed loop. Divide them by the edge which is
-                # inserted and fill up the hole -> a full PolyTri with edge
-                # constraining and boundary removal.
+        # somehow we have to gather the edges!
+        # and find a closed loop. Divide them by the edge which is
+        # inserted and fill up the hole -> a full PolyTri with edge
+        # constraining and boundary removal.
         tris2remove = list(tris2remove)
         tris2remove.sort()
         tris2remove.reverse()
@@ -391,7 +386,7 @@ class PolyTri(object):
         else:
             return [[*edge] for edge in zip(_tri[:-1], _tri[1:])]
 
-    def isIntersecting(self, edge1, edge2):
+    def is_intersecting(self, edge1, edge2):
         p11 = self.pts[edge1[0]]
         p12 = self.pts[edge1[1]]
         p21 = self.pts[edge2[0]]
