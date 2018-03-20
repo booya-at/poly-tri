@@ -107,8 +107,15 @@ class TriangleTests(unittest.TestCase):
     
     def test_easy_2(self):
         pts = np.array([[-1, 0], [1, 0], [0., 0.5], [0., -0.5]])
+        edge = [np.array([2, 3])]
+        tri = PolyTri(pts, edge, holes=False, delaunay=False)
+        plt.triplot(*pts.T, tri.get_tris())
+        plt.show()
+        
+    def test_easy_3(self):
+        pts = np.array([[-1., 0.], [1., 0.], [0., 0.5], [0., -0.5], [0., 1.]])
         edge = [np.array([0, 1])]
-        tri = PolyTri(pts, edge, holes=False)
+        tri = PolyTri(pts, holes=False, delaunay=False)
         plt.triplot(*pts.T, tri.get_tris())
         plt.show()
     

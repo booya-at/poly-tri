@@ -1,9 +1,7 @@
 #include "poly_tri.h"
 #include <algorithm>
 #include <math.h>
-// #include <pybind11/pybind11.h>
-// #include <pybind11/eigen.h>
-// #include <pybind11/stl.h>
+
 
 double small = 1e-10;
 
@@ -13,10 +11,7 @@ Edge kedge2edge(kEdge edge)
     Edge e;
     int j = 0;
     for (auto i_pnt: edge)
-    {
-        e[j] = i_pnt;
-        j++;
-    }
+        e[j++] = i_pnt;
     return e;
 }
 
@@ -106,6 +101,7 @@ PolyTri::PolyTri(Vecs pts, Boundaries boundaries, bool holes,
     {
         order[i] = element;
         unorder[element] = i;
+        i++;
     }
  
 // 3 first triangle
@@ -158,7 +154,8 @@ PolyTri::PolyTri(Vecs pts, Boundaries boundaries, bool holes,
     {
         add_point(i);
     }
-    
+    remove_empty();
+    update_mapping();
 // 6 constraine boundaries
     if (boundaries.size() > 0)
     {
@@ -180,59 +177,59 @@ void PolyTri::add_point(int id_pnt)
     Edges boundary_edges2add;
     for (Edge edge: boundary_edges)
     {
-    if (is_edge_visible(edge, id_pnt))
-    {
-        // create new triangle
-        Triangle new_tri{edge[0], edge[1], id_pnt};
-        std::sort(new_tri.begin(), new_tri.end());
-        make_counter_clockwise(new_tri);
-        tris.push_back(new_tri);
-        int iTri = tris.size() - 1;
-        
-        // update the edge to triangle map
+        if (is_edge_visible(edge, id_pnt))
+        {
+            // create new triangle
+            Triangle new_tri{edge[0], edge[1], id_pnt};
+            std::sort(new_tri.begin(), new_tri.end());
+            make_counter_clockwise(new_tri);
+            tris.push_back(new_tri);
+            int iTri = tris.size() - 1;
+            
+            // update the edge to triangle map
             kEdge e0{edge[0], edge[1]};  // set
-        kEdge e1{id_pnt, edge[0]};
-        kEdge e2{edge[1], id_pnt};
-        append_tri(e0, iTri);
-        append_tri(e1, iTri);
-        append_tri(e2, iTri);
-        
-        // keep track of the boundary edges to update
-        boundary_edges2remove.insert(edge);
-        boundary_edges2add.insert(Edge{edge[0], id_pnt});
-        boundary_edges2add.insert(Edge{id_pnt, edge[1]});
-    }
+            kEdge e1{id_pnt, edge[0]};
+            kEdge e2{edge[1], id_pnt};
+            append_tri(e0, iTri);
+            append_tri(e1, iTri);
+            append_tri(e2, iTri);
+            
+            // keep track of the boundary edges to update
+            boundary_edges2remove.insert(edge);
+            boundary_edges2add.insert(Edge{edge[0], id_pnt});
+            boundary_edges2add.insert(Edge{id_pnt, edge[1]});
+        }
     }
     // update the boundary edges
     for (auto bedge: boundary_edges2remove)
     {
-    boundary_edges.erase(bedge);
+        boundary_edges.erase(bedge);
     }
     for (auto bedge: boundary_edges2add)
     {
-    if (edge2tris[kEdge{bedge[0], bedge[1]}].size() == 1)
-    {
-        // only add boundary edge if it does not appear
-        // twice in different order
-            boundary_edges.insert(bedge);
-    }
+        if (edge2tris[kEdge{bedge[0], bedge[1]}].size() == 1)
+        {
+            // only add boundary edge if it does not appear
+            // twice in different order
+                boundary_edges.insert(bedge);
+        }
     }
     if (delaunay)  // recursively flip edges
     {
-    flip_edges();
+        flip_edges();
     
         for (int i=0; i < pts.size(); i++)
-    {
+        {
             pnt2tris[i] = std::vector<int>{};
-    }
+        }
 
         for (int j=0; j < tris.size(); j++)
-    {
-            for (int k: tris[j])
         {
+            for (int k: tris[j])
+            {
                 pnt2tris[k].push_back(j);
+            }
         }
-    }
     }
 }
 
@@ -377,14 +374,14 @@ void PolyTri::flip_edges()
 kEdges PolyTri::create_boundary_list(std::vector<int> border)
 {
     kEdges constrained_boundary;
-    for (int k; k < boundaries.size(); k++)
+    for (int k=0; k < boundaries.size(); k++)
     {
         if (std::find(border.begin(), border.end(), k) != border.end())
             continue;
         Boundary boundary = boundaries[k];
         int b0 = unorder[boundary[0]];
         int b1;
-        for (int i=1; i<boundaries.size(); i++)
+        for (int i=1; i<boundary.size(); i++)
         {
             b1 = unorder[boundary[i]];
             constrained_boundary.insert(kEdge{b0, b1});
@@ -417,6 +414,10 @@ Edges PolyTri::create_ordered_boundary_list(std::vector<int> border)
 
 bool PolyTri::is_intersecting(Edge edge1, Edge edge2)
 {
+    std::cout << "edge1: ";
+    for (auto i: edge1)
+        std::cout << i;
+    
     Vec p11 = pts[edge1[0]];
     Vec p12 = pts[edge1[1]];
     Vec p21 = pts[edge2[0]];
@@ -429,17 +430,17 @@ bool PolyTri::is_intersecting(Edge edge1, Edge edge2)
         return false;  // parallel
     else
     {
-        double a, b, c, d, g0, g1, c0, c1;
+        double a, b, c, d, e, f, c0, c1;
         a = t[0];
-        b = s[0];
+        b = -s[0];
         c = t[1];
-        d = t[1];
+        d = -s[1];
         // maybe transpose?
-        g0 = r[0];
-        g1 = r[1];
-        c0 = -b*g1/(a*d - b*c) + d*g0/(a*d - b*c);
-        c1 =  a*g1/(a*d - b*c) - c*g0/(a*d - b*c);
-        return (0 < c0 < 1) and (0 < c1 < 1);
+        e = r[0];
+        f = r[1];
+        c0 = -b*f/(a*d - b*c) + d*e/(a*d - b*c);
+        c1 = a*f/(a*d - b*c) - c*e/(a*d - b*c);
+        return 0 < c0 && c0 < 1 && 0 < c1 && c1 < 1;
     }
 }
 
@@ -490,11 +491,11 @@ void PolyTri::make_counter_clockwise(Triangle& tri)
     double area = get_area(tri);
     if (area < -small)
     {
-    int i1, i2;
-    i1 = tri[1];
-    i2 = tri[2];
-    tri[2] = i1;
-    tri[1] = i2;
+        int i1, i2;
+        i1 = tri[1];
+        i2 = tri[2];
+        tri[2] = i1;
+        tri[1] = i2;
     }
 }
 
@@ -684,92 +685,114 @@ void PolyTri::constraint_boundaries()
     Triangles tris2add;
     kEdges edges;
     Triangle tr;
+    int tri_index;
     kEdge edge, edge2proceed;
     for (kEdge cb: boundary)
     {
         kEdges removed_edges;
-        if (edge2tris.find(cb) == edge2tris.end())
+        // check existence of every boundary
+        if (edge2tris.find(cb) == edge2tris.end())   
         {
-            std::vector<int> e(cb.begin(), cb.end());
-            int pt1 = e[0];
-            int pt2 = e[1];
+            // if the edge is not existent, we have to delete intersecting edges
+            // and the connected triangles
+            // afterwards we create new triangles from the remaining empty loop
+            std::vector<int> _cb(cb.begin(), cb.end());
+            
+            // we start removing triangles at this point
+            int pt1 = _cb[0];
+     
+            // once we reach this point we are done with tri removal
+            int pt2 = _cb[1];
+
             for (auto tri: pnt2tris[pt1])
             {
-                Triangle tr = tris[tri];
-                // use edge without pt1
+                // get the edge which is not connected to pt1
+                tr = tris[tri];
                 edge.clear();
                 int index = 0;
                 for (auto pt: tr)
                 {
                     if (pt != pt1)
                         edge.insert(pt);
-                        if (is_intersecting(edge, cb))
-                        {
-                            tris2remove.insert(tri);
-                            break;
-                        }
-                    edges = tri2ordered_edges(tris[tri]);
-                    edges.erase(edge);
-                    removed_edges.insert(edges.begin(), edges.end());
-                    tr = tris[tri];
-                    if (std::find(tr.begin(), tr.end(), pt2) != tr.end())
+                }
+                
+                // if this edge is intersecting with the cb
+                // (cb = not yet applied), then we can proceed
+                // otherwise choose another triangle connected to
+                // pt1
+                if (is_intersecting(edge, cb))
+                {
+                    tris2remove.insert(tri);
+                    tri_index = tri;
+                    break;
+                }
+            }
+            // one triangle was added to the removal list
+            // now we have to 
+            edges = tri2ordered_edges(tr);
+            edges.erase(edge);
+            removed_edges.insert(edges.begin(), edges.end());
+            
+            while (true)
+            {
+                // we always start with an edge
+                // and look for the connected triangle which is not 
+                // yet in the triangle removal set
+                for (auto tri: edge2tris[edge])
+                {
+                    if (tris2remove.find(tri) == tris2remove.end())
+                    {
+                        tri_index = tri;
                         break;
-                    for (auto tri: edge2tris[edge])
-                    {
-                        if (tris2remove.find(tri) != tris2remove.end())
-                            break;
                     }
-                    while (true)
+                }
+                tris2remove.insert(tri_index);
+                tr = tris[tri_index];
+                edges = tri2ordered_edges(tr);
+                edges.erase(edge);
+                // removed triangles form a polygon which can be 
+                // represented by a closed loop (connected edges)
+                // here we gather these edges
+                for (kEdge edge: edges)
+                {
+                    if (is_intersecting(edge, cb))
+                        edge2proceed = edge;
+                    else
+                        removed_edges.insert(edge);
+                }
+                
+                if (std::find(tr.begin(), tr.end(), pt2) != tr.end()) 
+                {
+                    // if we find the end point we can stop the triangle removal for this edge
+                    break;
+                }
+                else
+                {
+                    // as we haven't found the end point of the edge cb (constraint boundary)
+                    // we have to look at the next triangle which has a intersecting edge
+                    edge = edge2proceed;
+                }
+            }
+            Boundaries loops = create_loop(removed_edges, _cb[0], _cb[1]);
+            for (auto loop: loops)
+            {
+                if (loop.size() == 3)
+                {
+                    Triangle _tr;
+                    std::copy_n(loop.begin(), 3, _tr.begin());
+                    tris2add.push_back(_tr);
+                }
+                else
+                {
+                    std::vector<int> loop_cb = range(loop.size());
+                    loop_cb.push_back(0);
+                    Vecs new_points;
+                    for (auto el_i: loop_cb)
+                        new_points.push_back(pts[el_i]);
+                    for (auto &tri: PolyTri(new_points, Boundaries{loop}, true, false, std::vector<int>{}).tris)
                     {
-                        tris2remove.insert(tri);
-                        edges = tri2ordered_edges(tris[tri]);
-                        edges.erase(edge);
-                        tr = tris[tri];
-                        for (kEdge edge: edges)
-                        {
-                            if (std::find(tr.begin(), tr.end(), pt2) != tr.end() && is_intersecting(edge, cb))
-                            {
-                                tris2remove.insert(tri);
-                                edge2proceed = edge;
-                            }
-                            else
-                                removed_edges.insert(edge);
-                        }
-                        if (std::find(tr.begin(), tr.end(), pt2) != tr.end()) 
-                            break;
-                        edge = edge2proceed;
-                        for (auto _tri: edge2tris[edge])
-                        {
-                            if (tris2remove.find(_tri) != tris2remove.end())
-                            {
-                                tri = _tri;
-                                break;
-                            }
-                        }
-                    }
-                    std::vector<int> _cb(cb.begin(), cb.end());
-                    Boundaries loops = create_loop(removed_edges, _cb[0], _cb[1]);
-                    for (auto loop: loops)
-                    {
-                        if (loop.size() == 3)
-                        {
-                            Triangle _tr;
-                            std::copy_n(loop.begin(), 3, _tr.begin());
-                            tris2add.push_back(_tr);
-                        }
-                        else
-                        {
-                            std::vector<int> loop_cb = range(loop.size());
-                            loop_cb.push_back(0);
-                            Vecs new_points;
-                            for (auto el_i: loop_cb)
-                                new_points.push_back(pts[el_i]);
-                            for (auto &tri: PolyTri(new_points, Boundaries{loop}, true, false, std::vector<int>{}).tris)
-                            {
-                                for (auto &t: tri)
-                                    t = loop[t];
-                            }
-                        }
+                        for (auto &t: tri)
+                            t = loop[t];
                     }
                 }
             }
@@ -790,14 +813,16 @@ void PolyTri::constraint_boundaries()
     update_mapping();
 }
 
-
-// PYBIND11_MODULE(poly_tri, m) {
-//     pybind11::class_<PolyTri>(m, "PolyTri")
-//         .def(pybind11::init<Vecs, Boundaries, bool, bool, std::vector<int>>(),
-//                 pybind11::arg("pts"),
-//                 pybind11::arg("boundaries")=Boundaries{},
-//                 pybind11::arg("remove_holes")=false,
-//                 pybind11::arg("delaunay")=false,
-//                 pybind11::arg("borders")=std::vector<int>{} )            
-//         .def_readonly("tris", &PolyTri::tris);
-// }
+Triangles PolyTri::get_tris()
+{
+    Triangles reorder;
+    for (Triangle tri: tris)
+    {
+        Triangle reordered_tri;
+        int i = 0;
+        for (int index: tri)
+            reordered_tri[i++] = order[index];
+        reorder.push_back(reordered_tri);
+    }
+    return reorder;
+}

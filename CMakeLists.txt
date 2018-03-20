@@ -13,11 +13,9 @@ find_package(pybind11 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 
-# pybind11_add_module(poly_tri SHARED poly_tri.cpp poly_tri.h)
+pybind11_add_module(poly_tri_cpp poly_tri_bindings.cpp poly_tri.cpp poly_tri.h)
 add_executable(main main.cpp poly_tri.cpp)
 
-# target_link_libraries(poly_tri ${PYTHON_LIBRARIES})
-# target_link_libraries(main ${PYTHON_LIBRARIES})
 
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
 "from distutils.sysconfig import get_python_lib; import os; print(get_python_lib())"
@@ -26,4 +24,4 @@ OUTPUT_VARIABLE _PYTHON_INSTALL_DIR OUTPUT_STRIP_TRAILING_WHITESPACE )
 string(REPLACE "\\" "/" PYTHON_INSTALL_DIR ${_PYTHON_INSTALL_DIR})
 
 
-# install(TARGETS poly_tri DESTINATION ${PYTHON_INSTALL_DIR})
+install(TARGETS poly_tri_cpp DESTINATION ${PYTHON_INSTALL_DIR})

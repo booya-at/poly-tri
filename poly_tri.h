@@ -36,7 +36,7 @@ public:
 
     PolyTri(Vecs pts,
             Boundaries boundaries=Boundaries{},
-            bool remove_holes=false,
+            bool holes=false,
             bool delaunay=false,
             std::vector<int> is_border=std::vector<int>{});
     void add_point(int id_pnt);
@@ -60,4 +60,5 @@ public:
     Boundaries create_loop(kEdges edges, int start, int end);
     void remove_holes();
     void constraint_boundaries();
+    Triangles get_tris();
 };
