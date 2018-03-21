@@ -68,12 +68,12 @@ def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, border=[]):
     update_mapping(tris, edge2tris, pnt2tris)
 
     if boundaries:
-        constraintBoundaries(pts, edge2tris, pnt2tris, tris, 
+        constraint_boundaries(pts, edge2tris, pnt2tris, tris, 
                              boundaries, unorder)
         if holes:
             remove_empty(pts, tris)
             update_mapping(tris, edge2tris, pnt2tris)
-            removeHoles(edge2tris, tris, boundaries, border, unorder)
+            remove_holes(edge2tris, tris, boundaries, border, unorder)
     
     return get_tris(order, tris)
 
@@ -289,7 +289,7 @@ def create_boundary_list(boundaries, unorder, border=None, create_key=True):
             constrained_boundary.append(item)
     return constrained_boundary
 
-def constraintBoundaries(pts, edge2tris, pnt2tris, tris, 
+def constraint_boundaries(pts, edge2tris, pnt2tris, tris, 
                          boundaries, unorder):
     boundary = create_boundary_list(boundaries, unorder)
     tris2remove = set()  # nr
@@ -321,7 +321,7 @@ def constraintBoundaries(pts, edge2tris, pnt2tris, tris,
                 edges = tri2edges(tris[tri])
                 edges.remove(edge)
                 for edge in edges:
-                    if not pt2 in tris[tri] and is_instersecting(pts, edge, cb):
+                    if is_instersecting(pts, edge, cb):
                         tris2remove.add(tri)
                         edge2proceed = edge
                     else:
@@ -410,7 +410,7 @@ def is_instersecting(pts, edge1, edge2):
     return (0 < c1 < 1) and (0 < c2 < 1)
 
 @numba.jit
-def removeHoles(edge2tris, tris, boundaries, border, unorder):
+def remove_holes(edge2tris, tris, boundaries, border, unorder):
     bs = create_boundary_list(boundaries, unorder, border)
     o_bs = create_boundary_list(boundaries, unorder, border, create_key=False)
     remove_edges = set()

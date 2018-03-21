@@ -12,17 +12,17 @@ class TriangleTests(unittest.TestCase):
         return np.random.randint(10, 30)
 
     def setUp(self):
-        self.phi = np.linspace(0, 2 * np.pi, self.an_int)
+        self.phi = np.linspace(0, 2 * np.pi, self.an_int)[:-1]
         self.outer = np.array([np.cos(self.phi), np.sin(self.phi)]).T
         self.inner = (self.outer * 0.5)
         self.points = np.array(list(self.outer) + list(self.inner))
-        self.inner_bound = np.array(range(len(self.inner)))
-        self.outer_bound = np.array(range(len(self.outer)))
+        self.inner_bound = np.array(list(range(len(self.inner))) + [0])
+        self.outer_bound = np.array(list(range(len(self.outer))) + [0])
         self.inner_bound +=  max(self.outer_bound) + 1
         self.outer_bound = self.outer_bound[::-1]
     
     def test_triangulization(self):
-        tri = PolyTri(self.points, [self.inner_bound, self.outer_bound], delaunay=False)
+        tri = PolyTri(self.points, [self.inner_bound, self.outer_bound], delaunay=True, holes=True)
         plt.figure(figsize=(10, 10))
         plt.triplot(*tri.pts.T, tri.tris)
         plt.show()
@@ -38,7 +38,7 @@ class TriangleTests(unittest.TestCase):
         cb = [[0, n-1]]
         additional_pts = np.array([[-1., 0], [2, 0.]])
         pts = np.array(list(pts) + list(pts_upper) + list(additional_pts))
-        tri = PolyTri(pts, cb, holes=False, delaunay=False)
+        tri = PolyTri(pts, cb, holes=False, delaunay=True)
         plt.triplot(*pts.T, tri.get_tris())
         for i, p in enumerate(pts):
             plt.annotate(str(i), p)
@@ -125,7 +125,7 @@ class TriangleTests(unittest.TestCase):
         outer_pts *= np.array([2., 1.])
         inner_pts *= 0.5
         pts = np.array(list(inner_pts) + list(outer_pts))
-        tri = PolyTri(pts,[list(range(len(inner_pts)))], delaunay=False)
+        tri = PolyTri(pts,[list(range(len(inner_pts))) + [0]], delaunay=True, holes=True)
         plt.figure(figsize=(10, 10))
         plt.triplot(*pts.T, tri.get_tris())
         plt.show()

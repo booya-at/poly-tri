@@ -43,6 +43,7 @@ class PolyTri(object):
     
             index = 0
     
+            # tri = [0, 1, 2]
             tri = [index, index + 1, index + 2]
             self.make_counter_clockwise(tri)
             if self.get_area(*tri) > self.small:
@@ -57,6 +58,10 @@ class PolyTri(object):
         e01 = (tri[0], tri[1])
         e12 = (tri[1], tri[2])
         e20 = (tri[2], tri[0])
+        
+        #print(cg)
+        #print(self.pts)
+        #print("tri0: ", tri)
 
         self.boundary_edges.add(e01)
         self.boundary_edges.add(e12)
@@ -68,17 +73,17 @@ class PolyTri(object):
 
         # add additional pts
         for i in range(3, len(self.pts)):
-            self.addPoint(i)
+            self.add_point(i)
         
 #        self.remove_empty()
         self.update_mapping()
         
         if self.boundaries:
-            self.constraintBoundaries()
+            self.constraint_boundaries()
             if holes:
                 self.remove_empty()
                 self.update_mapping()
-                self.removeHoles()
+                self.remove_holes()
     
     def get_tris(self):
         return [self.order[tri] for tri in self.tris]
@@ -100,7 +105,7 @@ class PolyTri(object):
         d2 = self.pts[d2]
         return (d1[0]*d2[1] - d1[1]*d2[0])
 
-    def isEdgeVisible(self, ip, edge):
+    def is_edge_visible(self, ip, edge):
         """
         Return true iff the point lies to its right when the edge pts down
         @param ip point index
@@ -221,7 +226,7 @@ class PolyTri(object):
             edgeSet = copy.copy(newEdgeSet)
             continueFlipping = (len(edgeSet) > 0)
 
-    def addPoint(self, ip):
+    def add_point(self, ip):
         """
         Add point
         @param ip point index
@@ -232,8 +237,9 @@ class PolyTri(object):
         boundary_edges2add = set()
 
         for edge in self.boundary_edges:
-            if self.isEdgeVisible(ip, edge):
-
+            print("all: ", ip, edge[0], edge[1])
+            if self.is_edge_visible(ip, edge):
+                print("vis: ", ip, edge[0], edge[1])
                 # create new triangle
                 newTri = [edge[0], edge[1], ip]
                 newTri.sort()
@@ -283,7 +289,7 @@ class PolyTri(object):
                 constrained_boundary.append(item)
         return constrained_boundary
 
-    def constraintBoundaries(self):
+    def constraint_boundaries(self):
         boundary = self.create_boundary_list()
         tris2remove = set()  # nr
         tris2add = []
@@ -302,14 +308,11 @@ class PolyTri(object):
                 edges.remove(edge)
                 removed_edges.add(edges[0])
                 removed_edges.add(edges[1])
-                
-                if pt2 in self.tris[tri]:
-                    break
-                for tri in self.edge2tris[edge]:
-                    if tri not in tris2remove:
-                        break
+
                 while True:
-                    tris2remove.add(tri)
+                    for tri in self.edge2tris[edge]:
+                        if tri not in tris2remove:
+                           break
 
                     edges = self.tri2edges(self.tris[tri])
                     edges.remove(edge)
@@ -322,9 +325,6 @@ class PolyTri(object):
                     if pt2 in self.tris[tri]:
                         break
                     edge = edge2proceed
-                    for tri in self.edge2tris[edge]:
-                        if tri not in tris2remove:
-                           break
 
                 
                 loops = self.create_loop(removed_edges, cb[0], cb[1])
@@ -400,7 +400,7 @@ class PolyTri(object):
             return False
         return (0 < c1 < 1) and (0 < c2 < 1)
 
-    def removeHoles(self):
+    def remove_holes(self):
         bs = self.create_boundary_list(self.border)
         o_bs = self.create_boundary_list(self.border, create_key=False)
         remove_edges = set()
