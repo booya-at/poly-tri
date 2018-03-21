@@ -43,8 +43,7 @@ class PolyTri(object):
     
             index = 0
     
-            # tri = [0, 1, 2]
-            tri = [index, index + 1, index + 2]
+            tri = [0, 1, 2]
             self.make_counter_clockwise(tri)
             if self.get_area(*tri) > self.small:
                 self.tris.append(tri)
@@ -58,10 +57,6 @@ class PolyTri(object):
         e01 = (tri[0], tri[1])
         e12 = (tri[1], tri[2])
         e20 = (tri[2], tri[0])
-        
-        #print(cg)
-        #print(self.pts)
-        #print("tri0: ", tri)
 
         self.boundary_edges.add(e01)
         self.boundary_edges.add(e12)
@@ -237,9 +232,8 @@ class PolyTri(object):
         boundary_edges2add = set()
 
         for edge in self.boundary_edges:
-            print("all: ", ip, edge[0], edge[1])
             if self.is_edge_visible(ip, edge):
-                print("vis: ", ip, edge[0], edge[1])
+
                 # create new triangle
                 newTri = [edge[0], edge[1], ip]
                 newTri.sort()
@@ -308,11 +302,14 @@ class PolyTri(object):
                 edges.remove(edge)
                 removed_edges.add(edges[0])
                 removed_edges.add(edges[1])
-
+                
+                if pt2 in self.tris[tri]:
+                    break
+                for tri in self.edge2tris[edge]:
+                    if tri not in tris2remove:
+                        break
                 while True:
-                    for tri in self.edge2tris[edge]:
-                        if tri not in tris2remove:
-                           break
+                    tris2remove.add(tri)
 
                     edges = self.tri2edges(self.tris[tri])
                     edges.remove(edge)
@@ -325,6 +322,9 @@ class PolyTri(object):
                     if pt2 in self.tris[tri]:
                         break
                     edge = edge2proceed
+                    for tri in self.edge2tris[edge]:
+                        if tri not in tris2remove:
+                           break
 
                 
                 loops = self.create_loop(removed_edges, cb[0], cb[1])

@@ -762,17 +762,12 @@ void PolyTri::constraint_boundaries()
             edges = tri2ordered_edges(tr);
             edges.erase(edge);
             removed_edges.insert(edges.begin(), edges.end());
-            
-            while (true)
-            {
-                // we always start with an edge
-                // and look for the connected triangle which is not 
-                // yet in the triangle removal set
-                std::cout << "currrent edge: ";
-                for (int e: edge)
-                    std::cout << e << ", ";
-                std::cout << std::endl;
-                for (auto tri: edge2tris[edge])
+            if (std::find(tr.begin(), tr.end(), pt2) != tr.end()) 
+                {
+                    // if we find the end point we can stop the triangle removal for this edge
+                    break;
+                }
+            for (auto tri: edge2tris[edge])
                 {
                     if (tris2remove.find(tri) == tris2remove.end())
                     {
@@ -780,6 +775,13 @@ void PolyTri::constraint_boundaries()
                         break;
                     }
                 }
+                
+            while (true)
+            {
+//                 std::cout << "currrent edge: ";
+//                 for (int e: edge)
+//                     std::cout << e << ", ";
+//                 std::cout << std::endl;
                 tris2remove.insert(tri_index);
                 tr = tris[tri_index];
                 
@@ -812,6 +814,15 @@ void PolyTri::constraint_boundaries()
                     // as we haven't found the end point of the edge cb (constraint boundary)
                     // we have to look at the next triangle which has a intersecting edge
                     edge = edge2proceed;
+                }
+                
+                for (auto tri: edge2tris[edge])
+                {
+                    if (tris2remove.find(tri) == tris2remove.end())
+                    {
+                        tri_index = tri;
+                        break;
+                    }
                 }
             }
             Boundaries loops = create_loop(removed_edges, _cb[0], _cb[1]);
