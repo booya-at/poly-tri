@@ -45,7 +45,7 @@ public:
     bool is_edge_visible(Edge edge, int id_pnt);
     double get_edge_area(Edge edge, Vec pnt);
     double get_edge_area(Edge edge);
-    double get_area(Triangle& tri);
+    double get_area(Triangle tri);
     void make_counter_clockwise(Triangle& tri);
     std::vector<int> sort_pts(Vec p0);
     void flip_edges();

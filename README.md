@@ -21,3 +21,7 @@ triangles = tri.get_tris()
 
 
 [1] https://code.activestate.com/recipes/579021-delaunay-triangulation/
+
+
+## TODO:
+cpp: delaunay not yet working  (find the bug)

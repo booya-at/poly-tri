@@ -62,7 +62,7 @@ def poly_tri(pts_in, boundaries=None, delaunay=True, holes=True, border=[]):
 
     # add additional pts
     for i in range(3, len(pts)):
-        addPoint(i, pts, edge2tris, tris, boundary_edges,
+        add_point(i, pts, edge2tris, tris, boundary_edges,
                  pnt2tris, delaunay)
 
     update_mapping(tris, edge2tris, pnt2tris)
@@ -229,7 +229,7 @@ def flip_edges(pts, edge2tris, tris):
         continueFlipping = (len(edgeSet) > 0)
 
 @numba.jit
-def addPoint(ip, pts, edge2tris, tris, boundary_edges, pnt2tris, delaunay):
+def add_point(ip, pts, edge2tris, tris, boundary_edges, pnt2tris, delaunay):
     """
     Add point
     @param ip point index

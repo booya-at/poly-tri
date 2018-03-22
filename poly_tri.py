@@ -108,7 +108,7 @@ class PolyTri(object):
         @return True if visible
         """
         area = self.get_area(ip, edge[0], edge[1])
-        if area < self.small:
+        if area < -self.small:
             return True
         return False
 
@@ -217,7 +217,8 @@ class PolyTri(object):
         while continueFlipping:
             newEdgeSet = set()
             for edge in edgeSet:
-                newEdgeSet |= self.flipOneEdge(edge)
+                for add_edge in self.flipOneEdge(edge):
+                    newEdgeSet.add(add_edge)
             edgeSet = copy.copy(newEdgeSet)
             continueFlipping = (len(edgeSet) > 0)
 
@@ -418,6 +419,21 @@ class PolyTri(object):
         for edge in remove_edges:
             for tri in self.edge2tris[edge]:
                 tris2remove.add(tri)
+        num_tris2remove = len(tris2remove)
+        while True:
+            for tri in tris2remove:
+                for _edge in self.tri2edges(self.tris[tri], create_key=True):
+                    remove_edges.add(_edge)
+            for b in bs:
+                if b in remove_edges:
+                    remove_edges.remove(b)
+            for edge in remove_edges:
+                for tri in self.edge2tris[edge]:
+                    tris2remove.add(tri)
+            if num_tris2remove == len(tris2remove):
+                break
+            else:
+                num_tris2remove = len(tris2remove)
         tris2remove = list(tris2remove)
         tris2remove.sort()
         tris2remove.reverse()
