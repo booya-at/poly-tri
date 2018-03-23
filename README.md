@@ -25,3 +25,5 @@ triangles = tri.get_tris()
 
 ## TODO:
 cpp: delaunay not yet working  (find the bug)
+python, cpp: some cases not yet working: make more tests. 
+

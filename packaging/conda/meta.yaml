@@ -19,7 +19,6 @@ requirements:
         - pybind11
         - cmake
         - python
-        - ninja
     run:
         - vc 14  # [win]
         - libgcc  # [unix]

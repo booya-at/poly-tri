@@ -25,3 +25,4 @@ string(REPLACE "\\" "/" PYTHON_INSTALL_DIR ${_PYTHON_INSTALL_DIR})
 
 
 install(TARGETS poly_tri_cpp DESTINATION ${PYTHON_INSTALL_DIR})
+install(FILES poly_tri_py.py poly_tri_numba.py DESTINATION ${PYTHON_INSTALL_DIR})

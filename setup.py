@@ -8,4 +8,4 @@ setup(name='poly_tri',
       author='looooo',
       author_email='sppedflyer@gmail.com',
       license='LGPL2',
-      modules=['poly_tri'])
+      modules=['poly_tri_py'])
