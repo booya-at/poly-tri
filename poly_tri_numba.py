@@ -149,7 +149,7 @@ def poly_tri(pts, boundaries=None, delaunay=True, holes=True, border=[]):
     edge2tris[make_key(*e20)] = [0]
 
     for i in tri:
-        pnt2tris[i] = [0]
+        pnt2tris[i] = set([0])
 
     # add additional pts
     for i in range(3, len(pts)):
@@ -283,8 +283,8 @@ def flip_one_edge(pts, tris, edge2tris, pnt2tris, edge, delaunay=True,
     # add new edge
     e = make_key(iOpposite1, iOpposite2)
     edge2tris[e] = [iTri1, iTri2]
-    pnt2tris[e[0]] = [iTri1, iTri2]
-    pnt2tris[e[1]] = [iTri1, iTri2]
+    pnt2tris[e[0]] |= set([iTri1, iTri2])
+    pnt2tris[e[1]] |= set([iTri1, iTri2])
 
     # modify two edge entries which now connect to
     # a different triangle
@@ -308,18 +308,20 @@ def flip_one_edge(pts, tris, edge2tris, pnt2tris, edge, delaunay=True,
     # assume iTri2 is not connected to edge U newTri1
     for i in newTri1:
         if i in edge:
-            tr = pnt2tris[i]
+            tr = list(pnt2tris[i])
             for j in range(len(tr)):
                 if tr[j] == iTri2:
                     tr[j] = iTri1
+            pnt2tris[i] = set(tr)
 
     # assume iTri1 is not connected to edge U newTri2
     for i in newTri2:
         if i in edge:
-            tr = pnt2tris[i]
+            tr = list(pnt2tris[i])
             for j in range(len(tr)):
                 if tr[j] == iTri1:
                     tr[j] = iTri2
+            pnt2tris[i] = set(tr)
 
 
     # these two edges might need to be flipped at the
@@ -373,8 +375,8 @@ def add_point(pts, tris, edge2tris, pnt2tris, ip, boundary_edges, delaunay):
 
             # add point to triangle information
             for i in newTri:
-                p = pnt2tris.get(i, [])
-                p.append(iTri)
+                p = pnt2tris.get(i, set())
+                p.add(iTri)
                 pnt2tris[i] = p
 
             # keep track of the boundary edges to update
@@ -405,8 +407,9 @@ def update_mapping(pts, tris, edge2tris, pnt2tris):
             e2t = edge2tris.get(edge, [])
             edge2tris[edge] = e2t + [i]
         for point in tri:
-            p2t = pnt2tris.get(point, [])
-            pnt2tris[point] = p2t + [i]
+            p2t = pnt2tris.get(point, set())
+            p2t.add(i)
+            pnt2tris[point] = p2t
 
 def remove_empty(pts, tris, edge2tris, pnt2tris):
     tris2remove = []
@@ -459,3 +462,11 @@ def remove_holes(tris, edge2tris, pnt2tris, boundaries, border, unorder):
     tris2remove.reverse()
     for i in tris2remove:
         tris.pop(i)
+
+
+class PolyTri(object):
+    def __init__(self, pts, boundaries=None, delaunay=True, holes=True, border=[]):
+        self.tris = poly_tri(pts, boundaries, delaunay, holes, border)
+    def get_tris(self):
+        return self.tris
+        

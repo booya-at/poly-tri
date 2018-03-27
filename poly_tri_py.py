@@ -64,13 +64,11 @@ class PolyTri(object):
         self.edge2tris[make_key(*e20)] = [0]
 
         for i in tri:
-            self.pnt2tris[i] = [0]
+            self.pnt2tris[i] = set([0])
 
         # add additional pts
         for i in range(3, len(self.pts)):
             self.add_point(i)
-        self.remove_empty()
-        self.update_mapping()
 
         if self.boundaries:
             self.constraint_boundaries()
@@ -132,11 +130,10 @@ class PolyTri(object):
             # no intesection
             # something went wrong
             return
-
+        
         # now we know the first intersecting edge
         # and flip this edge
         edges = self.flipOneEdge(edge, delaunay=False, check_self_intersection=True)
-
         # 4 edges should be returned (theoretically only 2 are possebly intersecting)
         while True:
             for e in edges:
@@ -151,7 +148,6 @@ class PolyTri(object):
                 if cb in self.edge2tris.keys():
                     break
                 else:
-                    print("constraining")
                     self.constraint_edge(make_key(edge[0], pt0))
                     self.constraint_edge(make_key(pt0, pt1))
 
@@ -226,8 +222,8 @@ class PolyTri(object):
         # add new edge
         e = make_key(iOpposite1, iOpposite2)
         self.edge2tris[e] = [iTri1, iTri2]
-        self.pnt2tris[e[0]] = [iTri1, iTri2]
-        self.pnt2tris[e[1]] = [iTri1, iTri2]
+        self.pnt2tris[e[0]] |= set([iTri1, iTri2])
+        self.pnt2tris[e[1]] |= set([iTri1, iTri2])
 
         # modify two edge entries which now connect to
         # a different triangle
@@ -251,18 +247,20 @@ class PolyTri(object):
         # assume iTri2 is not connected to edge U newTri1
         for i in newTri1:
             if i in edge:
-                tr = self.pnt2tris[i]
+                tr = list(self.pnt2tris[i])
                 for j in range(len(tr)):
                     if tr[j] == iTri2:
                         tr[j] = iTri1
+                self.pnt2tris[i] = set(tr)
 
         # assume iTri1 is not connected to edge U newTri2
         for i in newTri2:
             if i in edge:
-                tr = self.pnt2tris[i]
+                tr = list(self.pnt2tris[i])
                 for j in range(len(tr)):
                     if tr[j] == iTri1:
                         tr[j] = iTri2
+                self.pnt2tris[i] = set(tr)
 
 
         # these two edges might need to be flipped at the
@@ -317,9 +315,9 @@ class PolyTri(object):
 
                 # add point to triangle information
                 for i in newTri:
-                    p = self.pnt2tris.get(i, [])
-                    p.append(iTri)
-                    self.pnt2tris[i] = p
+                    p2t = self.pnt2tris.get(i, set())
+                    p2t.add(iTri)
+                    self.pnt2tris[i] = p2t
 
                 # keep track of the boundary edges to update
                 boundary_edges2remove.add(edge)
@@ -367,8 +365,9 @@ class PolyTri(object):
                 e2t = self.edge2tris.get(edge, [])
                 self.edge2tris[edge] = e2t + [i]
             for point in tri:
-                p2t = self.pnt2tris.get(point, [])
-                self.pnt2tris[point] = p2t + [i]
+                p2t = self.pnt2tris.get(point, set())
+                p2t.add(i)
+                self.pnt2tris[point] = p2t
                 
 
     def remove_empty(self):
