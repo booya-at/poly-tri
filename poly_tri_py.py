@@ -12,7 +12,7 @@ def make_key(i1, i2):
 
 class PolyTri(object):
 
-    small = 1e-10
+    small = 1e-15
 
     def __init__(self, pts, boundaries=None, delaunay=True, holes=True, border=[]):
 
@@ -23,7 +23,6 @@ class PolyTri(object):
         self.pnt2tris = {}
         self.boundary_edges = set()
         self.delaunay = delaunay
-        self.appliedBoundary_edges = None
         self.boundaries = boundaries
         self.border = border
 
@@ -40,8 +39,6 @@ class PolyTri(object):
     
             # create first triangle, make sure we're getting a non-zero area
             # otherwise drop the pts
-    
-            index = 0
     
             tri = [0, 1, 2]
             self.make_counter_clockwise(tri)
@@ -65,6 +62,9 @@ class PolyTri(object):
         self.edge2tris[make_key(*e01)] = [0]
         self.edge2tris[make_key(*e12)] = [0]
         self.edge2tris[make_key(*e20)] = [0]
+
+        for i in tri:
+            self.pnt2tris[i] = [0]
 
         # add additional pts
         for i in range(3, len(self.pts)):
@@ -93,12 +93,6 @@ class PolyTri(object):
         d2 = self.pts[ip2] - self.pts[ip0]
         return (d1[0]*d2[1] - d1[1]*d2[0])
 
-    def edgeArea(self, ordered_edge):
-        d1, d2 = ordered_edge
-        d1 = self.pts[d1]
-        d2 = self.pts[d2]
-        return (d1[0]*d2[1] - d1[1]*d2[0])
-
     def is_edge_visible(self, ip, edge):
         """
         Return true iff the point lies to its right when the edge pts down
@@ -122,7 +116,6 @@ class PolyTri(object):
             ips[1], ips[2] = ip2, ip1
 
     def constraint_edge(self, cb):
-        print("hellooo")
         # start with first point in edge:
         if cb in self.edge2tris.keys():
             return
@@ -173,12 +166,12 @@ class PolyTri(object):
         res = set()
 
         # assume edge is sorted
-        tris = self.edge2tris.get(edge, [])
-        if len(tris) < 2:
+        _tris = self.edge2tris.get(edge, [])
+        if len(_tris) < 2:
                 # nothing to do, just return
                 return res
 
-        iTri1, iTri2 = tris
+        iTri1, iTri2 = _tris
         tri1 = self.tris[iTri1]
         tri2 = self.tris[iTri2]
 
@@ -355,7 +348,7 @@ class PolyTri(object):
                 continue
             b = self.unorder[boundary]
             for i, j in zip(b[:-1], b[1:]):
-                item = [i, j]
+                item = (i, j)
                 if create_key:
                     item = make_key(*item)
                 constrained_boundary.append(item)
@@ -363,75 +356,8 @@ class PolyTri(object):
 
     def constraint_boundaries(self):
         boundary = self.create_boundary_list()
-        tris2remove = set()  # nr
-        tris2add = []
         for cb in boundary:
             self.constraint_edge(cb)
-            # removed_edges = set()
-            # if cb not in self.edge2tris.keys():
-            #     pt1, pt2 = cb
-            #     for tri in self.pnt2tris[pt1]:
-            #         edge = copy.copy(self.tris[tri])
-            #         edge.remove(pt1)
-            #         edge = make_key(*edge)
-            #         if self.is_intersecting(edge, cb):
-            #             tris2remove.add(tri)
-            #             break
-            #     edges = self.tri2edges(self.tris[tri], create_key=True)
-            #     edges.remove(edge)
-            #     removed_edges.add(edges[0])
-            #     removed_edges.add(edges[1])
-                
-            #     if pt2 in self.tris[tri]:
-            #         break
-            #     for tri in self.edge2tris[edge]:
-            #         if tri not in tris2remove:
-            #             break
-            #     while True:
-            #         tris2remove.add(tri)
-
-            #         edges = self.tri2edges(self.tris[tri])
-            #         edges.remove(edge)
-            #         for edge in edges:
-            #             if not pt2 in self.tris[tri] and self.is_intersecting(edge, cb):
-            #                 tris2remove.add(tri)
-            #                 edge2proceed = edge
-            #             else:
-            #                 removed_edges.add(edge)
-            #         if pt2 in self.tris[tri]:
-            #             break
-            #         edge = edge2proceed
-            #         for tri in self.edge2tris[edge]:
-            #             if tri not in tris2remove:
-            #                break
-
-                
-            #     loops = self.create_loop(removed_edges, cb[0], cb[1])
-            #     for loop in loops:
-            #         if len(loop) == 3:
-            #             tris2add.append(loop)
-            #         else:
-            #             loop_cb = list(range(len(loop))) + [0]
-            #             loop = np.array(loop)
-            #             tris = PolyTri(self.pts[loop], [loop_cb], holes=True, delaunay=False).get_tris()
-            #             tris = [loop[tri] for tri in tris]
-            #             tris2add += tris
-
-                
-        # somehow we have to gather the edges!
-        # and find a closed loop. Divide them by the edge which is
-        # inserted and fill up the hole -> a full PolyTri with edge
-        # constraining and boundary removal.
-        tris2remove = list(tris2remove)
-        tris2remove.sort()
-        tris2remove.reverse()
-        for tri in tris2remove:
-            self.tris.pop(tri)
-        for tri in tris2add:
-            self.tris.append(list(tri))
-        for tri in self.tris:
-            self.make_counter_clockwise(tri)
-        self.update_mapping()
 
     def update_mapping(self):
         self.edge2tris = {}
@@ -463,7 +389,7 @@ class PolyTri(object):
         if create_key:
             return [make_key(*edge) for edge in zip(_tri[:-1], _tri[1:])]
         else:
-            return [[*edge] for edge in zip(_tri[:-1], _tri[1:])]
+            return [tuple(edge) for edge in zip(_tri[:-1], _tri[1:])]
 
     def is_intersecting(self, edge1, edge2):
         if edge1[0] in edge2 or edge1[1] in edge2:
@@ -486,8 +412,8 @@ class PolyTri(object):
         o_bs = self.create_boundary_list(self.border, create_key=False)
         remove_edges = set()
         for b, o_b in zip(bs, o_bs):
-            tris = self.edge2tris[b]
-            for tri in tris:
+            _tris = self.edge2tris[b]
+            for tri in _tris:
                 if o_b in self.tri2edges(self.tris[tri], create_key=False):
                     edges = self.tri2edges(self.tris[tri])
                     for edge in edges:
@@ -519,58 +445,3 @@ class PolyTri(object):
         tris2remove.reverse()
         for i in tris2remove:
             self.tris.pop(i)
-    
-    def create_loop(self, edges, start, end):
-        loop = []
-        point2edge = {}
-        for edge in edges:
-            p2e = point2edge.get(edge[0], [])
-            point2edge[edge[0]] = p2e + [edge]
-            p2e = point2edge.get(edge[1], [])
-            point2edge[edge[1]] = p2e + [edge]
-        e0, e1 = point2edge[start]
-        loop.append(start)
-        p0 = start
-        while True:
-            # p1 is the other point of the edge
-            p1 = e0[0]
-            if p1 == p0:
-                p1 = e0[1]
-            loop.append(p1)
-            e1 = point2edge[p1][0]
-            if e1 == e0:
-                e1 = point2edge[p1][1]
-            e0 = e1
-            p0 = p1
-            if p0 == start:
-                break
-
-        area = sum([self.edgeArea(e) for e in zip(loop[:-1], loop[1:])])
-        if area > 0:
-            loop.reverse()
-        
-        lower_loop = []
-        upper_loop = []
-        insert_upper = True
-        for i in loop:
-            if insert_upper:
-                upper_loop.append(i)
-                if i == end:
-                    insert_upper=False
-                    lower_loop.append(i)
-            else:
-                lower_loop.append(i)
-        return upper_loop, lower_loop
-
-
-if __name__ == '__main__':
-    # for profiling
-    phi = np.linspace(0, 2 * np.pi, 100)
-    outer = np.array([np.cos(phi), np.sin(phi)]).T
-    inner = (outer * 0.5)
-    points = np.array(list(outer) + list(inner))
-    inner_bound = np.array(range(len(inner)))
-    outer_bound = np.array(range(len(outer)))
-    inner_bound +=  max(outer_bound) + 1
-    outer_bound = outer_bound[::-1]
-    tri = PolyTri(points, [inner_bound, outer_bound], delaunay=False)
