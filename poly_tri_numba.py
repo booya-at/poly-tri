@@ -85,24 +85,36 @@ def tri2edges(tri, create_key=True):
             edges.append((edge[0], edge[1]))
     return edges
 
-def create_boundary_list(boundaries, unorder, border=None, create_key=True):
+@numba.jit
+def delaunay_check(pts, edge, iOpposite1, iOpposite2):
+    # compute the 2 angles at the opposite vertices
+    da1 = pts[edge[0]] - pts[iOpposite1]
+    db1 = pts[edge[1]] - pts[iOpposite1]
+    da2 = pts[edge[0]] - pts[iOpposite2]
+    db2 = pts[edge[1]] - pts[iOpposite2]
+    crossProd1 = get_area(pts, iOpposite1, edge[0], edge[1])
+    crossProd2 = get_area(pts, iOpposite2, edge[1], edge[0])
+    dotProd1 = np.dot(da1, db1)
+    dotProd2 = np.dot(da2, db2)
+    angle1 = abs(np.arctan2(crossProd1, dotProd1))
+    angle2 = abs(np.arctan2(crossProd2, dotProd2))
+    return (angle1 + angle2 > np.pi*(1.0 + small))
+
+
+def create_boundary_list(boundaries, unorder, border, create_key=True):
     constrained_boundary = []
-    _boundaries = []
-    if not border:
-        border = list(range(len(boundaries)))
     for k, boundary in enumerate(boundaries):
         if k in border:
-            _boundaries.append(boundary)
-    for boundary in _boundaries:
-        b = unorder[boundary]
-        for i, j in zip(b[:-1], b[1:]):
-            item = (i, j)
-            if create_key:
-                item = make_key(*item)
-            constrained_boundary.append(item)
+            b = unorder[boundary]
+            for i, j in zip(b[:-1], b[1:]):
+                item = (i, j)
+                if create_key:
+                    item = make_key(*item)
+                constrained_boundary.append(item)
     return constrained_boundary
 
-def poly_tri(pts, boundaries=None, delaunay=True, holes=True, border=[]):
+
+def poly_tri(pts, boundaries=[], delaunay=True, holes=True, border=[]):
 
     # data structures
     _pts = pts[:]  # copy
@@ -110,6 +122,7 @@ def poly_tri(pts, boundaries=None, delaunay=True, holes=True, border=[]):
     edge2tris = {}  # edge to triangle(s) map
     pnt2tris = {}
     boundary_edges = set()
+    border = border or list(range(len(boundaries)))
 
     # compute center of gravity
 
@@ -156,7 +169,8 @@ def poly_tri(pts, boundaries=None, delaunay=True, holes=True, border=[]):
         add_point(pts, tris, edge2tris, pnt2tris, i, boundary_edges, delaunay)
 
     if boundaries:
-        boundary = create_boundary_list(boundaries, unorder, border=None,
+        boundary = create_boundary_list(boundaries, unorder,
+                                        border=range(len(boundaries)),
                                         create_key=True)
         for cb in boundary:
             constraint_edge(pts, tris, edge2tris, pnt2tris, cb)
@@ -218,116 +232,103 @@ def flip_one_edge(pts, tris, edge2tris, pnt2tris, edge, delaunay=True,
     """
     Flip one edge then update the data structures
     """
-
     # start with empty set
     res = set()
+    proceed = True
 
     # assume edge is sorted
     _tris = edge2tris.get(edge, [])
     if len(_tris) < 2:
-            # nothing to do, just return
-            return res
+        proceed = False
 
-    iTri1, iTri2 = _tris
-    tri1 = tris[iTri1]
-    tri2 = tris[iTri2]
+    if proceed:
+        iTri1, iTri2 = _tris
+        tri1 = tris[iTri1]
+        tri2 = tris[iTri2]
 
-    # find the opposite vertices, not part of the edge
-    iOpposite1 = -1
-    iOpposite2 = -1
-    for i in range(3):
-        if not tri1[i] in edge:
-            iOpposite1 = tri1[i]
-        if not tri2[i] in edge:
-            iOpposite2 = tri2[i]
+        # find the opposite vertices, not part of the edge
+        iOpposite1 = -1
+        iOpposite2 = -1
+        for i in range(3):
+            if not tri1[i] in edge:
+                iOpposite1 = tri1[i]
+            if not tri2[i] in edge:
+                iOpposite2 = tri2[i]
 
-    if check_self_intersection:
-        diagonal2 = make_key(iOpposite1, iOpposite2)
-        if not is_intersecting(pts, edge, diagonal2):
-            return set()
+        if check_self_intersection:
+            diagonal2 = make_key(iOpposite1, iOpposite2)
+            if not is_intersecting(pts, edge, diagonal2):
+                proceed = False
+    if proceed:
+        if delaunay and not delaunay_check(pts, edge, iOpposite1, iOpposite2):
+            proceed = False
 
-    if delaunay:
-        # compute the 2 angles at the opposite vertices
-        da1 = pts[edge[0]] - pts[iOpposite1]
-        db1 = pts[edge[1]] - pts[iOpposite1]
-        da2 = pts[edge[0]] - pts[iOpposite2]
-        db2 = pts[edge[1]] - pts[iOpposite2]
-        crossProd1 = get_area(pts, iOpposite1, edge[0], edge[1])
-        crossProd2 = get_area(pts, iOpposite2, edge[1], edge[0])
-        dotProd1 = np.dot(da1, db1)
-        dotProd2 = np.dot(da2, db2)
-        angle1 = abs(np.arctan2(crossProd1, dotProd1))
-        angle2 = abs(np.arctan2(crossProd2, dotProd2))
+    if proceed:
+            # flip the tris
+        #                         / ^ \                                        / b \
+        # iOpposite1 + a|b + iOpposite2    =>     + - > +
+        #                         \     /                                        \ a /
 
-        # Delaunay's test
-        if not (angle1 + angle2 > np.pi*(1.0 + small)):
-            return res
+        newTri1 = [iOpposite1, edge[0], iOpposite2]  # triangle a
+        newTri2 = [iOpposite1, iOpposite2, edge[1]]  # triangle b
 
-    # flip the tris
-    #                         / ^ \                                        / b \
-    # iOpposite1 + a|b + iOpposite2    =>     + - > +
-    #                         \     /                                        \ a /
+        # update the triangle data structure
+        tris[iTri1] = newTri1
+        tris[iTri2] = newTri2
 
-    newTri1 = [iOpposite1, edge[0], iOpposite2]  # triangle a
-    newTri2 = [iOpposite1, iOpposite2, edge[1]]  # triangle b
+        # now handle the topolgy of the edges
 
-    # update the triangle data structure
-    tris[iTri1] = newTri1
-    tris[iTri2] = newTri2
+        # remove this edge
+        del edge2tris[edge]
 
-    # now handle the topolgy of the edges
+        # add new edge
+        e = make_key(iOpposite1, iOpposite2)
+        edge2tris[e] = [iTri1, iTri2]
+        pnt2tris[e[0]] |= set([iTri1, iTri2])
+        pnt2tris[e[1]] |= set([iTri1, iTri2])
 
-    # remove this edge
-    del edge2tris[edge]
-
-    # add new edge
-    e = make_key(iOpposite1, iOpposite2)
-    edge2tris[e] = [iTri1, iTri2]
-    pnt2tris[e[0]] |= set([iTri1, iTri2])
-    pnt2tris[e[1]] |= set([iTri1, iTri2])
-
-    # modify two edge entries which now connect to
-    # a different triangle
-    e = make_key(iOpposite1, edge[1])
-    v = edge2tris[e]
-    for i in range(len(v)):
-        if v[i] == iTri1:
-            v[i] = iTri2
-    res.add(e)
+        # modify two edge entries which now connect to
+        # a different triangle
+        e = make_key(iOpposite1, edge[1])
+        v = edge2tris[e]
+        for i in range(len(v)):
+            if v[i] == iTri1:
+                v[i] = iTri2
+        res.add(e)
 
 
 
-    e = make_key(iOpposite2, edge[0])
-    v = edge2tris[e]
-    for i in range(len(v)):
-        if v[i] == iTri2:
-            v[i] = iTri1
-    res.add(e)
+        e = make_key(iOpposite2, edge[0])
+        v = edge2tris[e]
+        for i in range(len(v)):
+            if v[i] == iTri2:
+                v[i] = iTri1
+        res.add(e)
 
-    # updating the remining points
-    # assume iTri2 is not connected to edge U newTri1
-    for i in newTri1:
-        if i in edge:
-            tr = list(pnt2tris[i])
-            for j in range(len(tr)):
-                if tr[j] == iTri2:
-                    tr[j] = iTri1
-            pnt2tris[i] = set(tr)
+        # updating the remining points
+        # assume iTri2 is not connected to edge U newTri1
+        for i in newTri1:
+            if i in edge:
+                tr = list(pnt2tris[i])
+                for j in range(len(tr)):
+                    if tr[j] == iTri2:
+                        tr[j] = iTri1
+                pnt2tris[i] = set(tr)
 
-    # assume iTri1 is not connected to edge U newTri2
-    for i in newTri2:
-        if i in edge:
-            tr = list(pnt2tris[i])
-            for j in range(len(tr)):
-                if tr[j] == iTri1:
-                    tr[j] = iTri2
-            pnt2tris[i] = set(tr)
+        # assume iTri1 is not connected to edge U newTri2
+        for i in newTri2:
+            if i in edge:
+                tr = list(pnt2tris[i])
+                for j in range(len(tr)):
+                    if tr[j] == iTri1:
+                        tr[j] = iTri2
+                pnt2tris[i] = set(tr)
 
 
-    # these two edges might need to be flipped at the
-    # next iteration
-    res.add(make_key(iOpposite1, edge[0]))
-    res.add(make_key(iOpposite2, edge[1]))
+        # these two edges might need to be flipped at the
+        # next iteration
+        res.add(make_key(iOpposite1, edge[0]))
+        res.add(make_key(iOpposite2, edge[1]))
 
     return res
 
@@ -398,7 +399,6 @@ def add_point(pts, tris, edge2tris, pnt2tris, ip, boundary_edges, delaunay):
     if delaunay:  # recursively flip edges
         flip_edges(pts, tris, edge2tris, pnt2tris)
 
-@numba.jit
 def update_mapping(pts, tris, edge2tris, pnt2tris):
     edge2tris = {}
     pnt2tris = {}
