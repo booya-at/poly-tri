@@ -4,7 +4,7 @@ import numba
 
 small = 1e-15
 
-@numba.jit
+@numba.njit
 def make_key(i1, i2):
     """
     Make a tuple key such at i1 < i2
@@ -13,7 +13,7 @@ def make_key(i1, i2):
         return (i1, i2)
     return (i2, i1)
 
-@numba.jit
+@numba.njit
 def get_area(pts, ip0, ip1, ip2):
     """
     Compute the parallelipiped area
@@ -22,7 +22,7 @@ def get_area(pts, ip0, ip1, ip2):
     d2 = pts[ip2] - pts[ip0]
     return (d1[0]*d2[1] - d1[1]*d2[0])
 
-@numba.jit
+@numba.njit
 def is_edge_visible(pts, ip, edge):
     """
     Return true if the point lies to its right when the edge pts down
@@ -32,7 +32,7 @@ def is_edge_visible(pts, ip, edge):
         return True
     return False
 
-@numba.jit
+@numba.njit
 def make_counter_clockwise(pts, ips):
     """
     Re-order nodes to ensure positive area (in-place operation)
@@ -43,7 +43,7 @@ def make_counter_clockwise(pts, ips):
         # swap
         ips[1], ips[2] = ip2, ip1
 
-@numba.jit
+@numba.njit
 def is_intersecting(pts, edge1, edge2):
     """
     checks if two edges are intersecting
@@ -71,7 +71,7 @@ def is_intersecting(pts, edge1, edge2):
     c2 = (a * f - c * e) / g
     return (0 <= c1 <= 1) and (0 <= c2 <= 1)
 
-@numba.jit
+@numba.njit
 def tri2edges(tri, create_key=True):
     """
     creates edges from a triangle
@@ -85,7 +85,7 @@ def tri2edges(tri, create_key=True):
             edges.append((edge[0], edge[1]))
     return edges
 
-@numba.jit
+@numba.njit
 def delaunay_check(pts, edge, iOpposite1, iOpposite2):
     # compute the 2 angles at the opposite vertices
     da1 = pts[edge[0]] - pts[iOpposite1]
@@ -184,6 +184,7 @@ def poly_tri(pts, boundaries=[], delaunay=True, holes=True, border=[]):
         output.append(order[tri])
     return output
 
+
 def constraint_edge(pts, tris, edge2tris, pnt2tris, cb):
     # start with first point in edge:
     if cb in edge2tris.keys():
@@ -232,6 +233,11 @@ def flip_one_edge(pts, tris, edge2tris, pnt2tris, edge, delaunay=True,
     """
     Flip one edge then update the data structures
     """
+    # print("pts: ", pts)
+    # print("tris: ", tris)
+    # print("edge2tris: ", edge2tris)
+    # print("pnt2tris: ", pnt2tris)
+    # print("edge: ", edge)
     # start with empty set
     res = set()
     proceed = True
@@ -264,11 +270,7 @@ def flip_one_edge(pts, tris, edge2tris, pnt2tris, edge, delaunay=True,
             proceed = False
 
     if proceed:
-            # flip the tris
-        #                         / ^ \                                        / b \
-        # iOpposite1 + a|b + iOpposite2    =>     + - > +
-        #                         \     /                                        \ a /
-
+        # flip the tris
         newTri1 = [iOpposite1, edge[0], iOpposite2]  # triangle a
         newTri2 = [iOpposite1, iOpposite2, edge[1]]  # triangle b
 
@@ -295,8 +297,6 @@ def flip_one_edge(pts, tris, edge2tris, pnt2tris, edge, delaunay=True,
             if v[i] == iTri1:
                 v[i] = iTri2
         res.add(e)
-
-
 
         e = make_key(iOpposite2, edge[0])
         v = edge2tris[e]
@@ -400,8 +400,8 @@ def add_point(pts, tris, edge2tris, pnt2tris, ip, boundary_edges, delaunay):
         flip_edges(pts, tris, edge2tris, pnt2tris)
 
 def update_mapping(pts, tris, edge2tris, pnt2tris):
-    edge2tris = {}
-    pnt2tris = {}
+    edge2tris.clear()
+    pnt2tris.clear()
     for i, tri in enumerate(tris):
         for edge in tri2edges(tri):
             e2t = edge2tris.get(edge, [])
@@ -465,7 +465,7 @@ def remove_holes(tris, edge2tris, pnt2tris, boundaries, border, unorder):
 
 
 class PolyTri(object):
-    def __init__(self, pts, boundaries=None, delaunay=True, holes=True, border=[]):
+    def __init__(self, pts, boundaries=[], delaunay=True, holes=True, border=[]):
         self.tris = poly_tri(pts, boundaries, delaunay, holes, border)
     def get_tris(self):
         return self.tris

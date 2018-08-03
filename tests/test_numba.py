@@ -21,7 +21,6 @@ class TriangleTests(unittest.TestCase):
         self.inner_bound +=  max(self.outer_bound) + 1
         self.outer_bound = self.outer_bound[::-1]
 
-
     def test_triangulization(self):
         tri = poly_tri(self.points, [self.inner_bound, self.outer_bound], delaunay=False, holes=True)
         plt.figure(figsize=(10, 10))
@@ -91,7 +90,7 @@ class TriangleTests(unittest.TestCase):
             [ 0.6, 0.7],
             [ 0.8, 0.5],
             [ 1.0, 0.]])
-        tri = poly_tri(pts, holes=False, delaunay=False)
+        tri = poly_tri(pts, holes=False, delaunay=True)
         plt.triplot(*pts.T, tri)
         plt.show()
        

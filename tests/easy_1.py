@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from poly_tri import PolyTri
+from poly_tri_py import PolyTri
 
 ul = [[1, 2, 3, 4, 0, 1]]
 pts = np.array([[0.,  0. ],

@@ -62,4 +62,4 @@ boundaries = [[0, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24
 			  [48, 49, 50, 51, 48]]
 
 tris = PolyTri(pts, boundaries, holes=True, delaunay=False).get_tris()
-plt.triplot(*pts.T, tris)
+# plt.triplot(*pts.T, tris)
